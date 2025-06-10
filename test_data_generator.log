@@ -1,0 +1,31 @@
+2025-06-10 08:15:13,445 - INFO - Starting test data generation
+2025-06-10 08:15:13,446 - WARNING - No schemas found, creating default schema
+2025-06-10 08:15:13,446 - INFO - Built dependency graph: {'users': [], 'orders': ['users']}
+2025-06-10 08:15:13,446 - INFO - Table generation order: ['users', 'orders']
+2025-06-10 08:15:13,446 - INFO - Generating 100 rows for table users
+2025-06-10 08:15:13,515 - INFO - Generating 100 rows for table orders
+2025-06-10 08:15:13,590 - INFO - Exported users to ./output\users.csv
+2025-06-10 08:15:13,592 - INFO - Exported orders to ./output\orders.csv
+2025-06-10 08:15:13,622 - INFO - Audit trail saved to ./output\audit_trail.json
+2025-06-10 08:15:13,622 - INFO - Test data generation completed successfully
+2025-06-10 08:17:57,676 - INFO - Starting test data generation
+2025-06-10 08:17:57,689 - INFO - Built dependency graph: {'music_recommendation': []}
+2025-06-10 08:17:57,690 - INFO - Table generation order: ['music_recommendation']
+2025-06-10 08:17:57,690 - INFO - Generating 100 rows for table music_recommendation
+2025-06-10 08:17:57,824 - INFO - Exported music_recommendation to ./output\music_recommendation.csv
+2025-06-10 08:17:57,826 - INFO - Audit trail saved to ./output\audit_trail.json
+2025-06-10 08:17:57,826 - INFO - Test data generation completed successfully
+2025-06-10 08:19:51,102 - INFO - Starting test data generation
+2025-06-10 08:19:51,118 - INFO - Built dependency graph: {'music_recommendation': []}
+2025-06-10 08:19:51,118 - INFO - Table generation order: ['music_recommendation']
+2025-06-10 08:19:51,119 - INFO - Generating 100 rows for table music_recommendation
+2025-06-10 08:19:51,137 - INFO - Exported music_recommendation to ./output\music_recommendation.csv
+2025-06-10 08:19:51,138 - INFO - Audit trail saved to ./output\audit_trail.json
+2025-06-10 08:19:51,138 - INFO - Test data generation completed successfully
+2025-06-10 08:19:58,641 - INFO - Starting test data generation
+2025-06-10 08:19:58,651 - INFO - Built dependency graph: {'music_recommendation': []}
+2025-06-10 08:19:58,651 - INFO - Table generation order: ['music_recommendation']
+2025-06-10 08:19:58,651 - INFO - Generating 100 rows for table music_recommendation
+2025-06-10 08:19:58,664 - INFO - Exported music_recommendation to ./output\music_recommendation.csv
+2025-06-10 08:19:58,665 - INFO - Audit trail saved to ./output\audit_trail.json
+2025-06-10 08:19:58,665 - INFO - Test data generation completed successfully
