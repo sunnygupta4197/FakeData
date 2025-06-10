@@ -1,64 +1,75 @@
-"""
-Production-ready Synthetic Data Platform Structure
+# Complete Synthetic Data Generation Platform
 
+## Project Structure
+```
 synthetic_data_platform/
-├── src/
-│   └── synthetic_data_platform/
+├── README.md
+├── requirements.txt
+├── setup.py
+├── pyproject.toml
+├── docker-compose.yml
+├── Dockerfile
+├── .env.example
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── config.yaml
+│   │   └── templates/
+│   │       ├── customer_template.yaml
+│   │       └── financial_template.yaml
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── data_generator.py
+│   │   ├── validator.py
+│   │   ├── relationship_preserver.py
+│   │   ├── rule_engine.py
+│   │   └── masking_engine.py
+│   ├── input/
+│   │   ├── __init__.py
+│   │   ├── sample_data_profiler.py
+│   │   └── schema_parser.py
+│   ├── output/
+│   │   ├── __init__.py
+│   │   ├── exporter.py
+│   │   ├── audit_logger.py
+│   │   └── writer.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── rest_api.py
+│   │   ├── cli.py
+│   │   └── models.py
+│   ├── jobs/
+│   │   ├── __init__.py
+│   │   ├── job_manager.py
+│   │   └── scheduler.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── config_manager.py
+│   │   ├── exceptions.py
+│   │   └── helpers.py
+│   └── web/
 │       ├── __init__.py
-│       ├── main.py                    # Enhanced main orchestrator
-│       ├── input/
-│       │   ├── __init__.py
-│       │   ├── schema_parser.py       # DDL/JSON schema parsing
-│       │   └── sample_data_profiler.py # Data profiling
-│       ├── core/
-│       │   ├── __init__.py
-│       │   ├── rule_engine.py         # Rule management
-│       │   ├── data_generator.py      # Enhanced generator
-│       │   ├── masking_engine.py      # PII masking
-│       │   └── orchestrator.py       # Core orchestration
-│       ├── output/
-│       │   ├── __init__.py
-│       │   ├── exporter.py           # Multi-format export
-│       │   └── audit_logger.py       # Audit trail
-│       ├── api/
-│       │   ├── __init__.py
-│       │   ├── cli.py                # Click-based CLI
-│       │   ├── rest_api.py           # FastAPI REST API
-│       │   └── models.py             # Pydantic models
-│       ├── jobs/
-│       │   ├── __init__.py
-│       │   ├── scheduler.py          # APScheduler integration
-│       │   └── job_manager.py        # Job management
-│       └── utils/
-│           ├── __init__.py
-│           ├── config_manager.py     # Configuration management
-│           ├── exceptions.py         # Custom exceptions
-│           └── validation.py         # Schema validation
+│       ├── app.py
+│       ├── static/
+│       └── templates/
 ├── tests/
 │   ├── __init__.py
-│   ├── test_data_generator.py
-│   ├── test_masking_engine.py
-│   ├── test_cli.py
-│   └── test_api.py
-├── configs/
-│   ├── sample_config.json
-│   └── rules/
-│       └── default_rules.yaml
-├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml
+│   ├── test_generator.py
+│   ├── test_profiler.py
+│   ├── test_api.py
+│   └── fixtures/
+├── examples/
+│   ├── basic_usage.py
+│   ├── advanced_usage.py
+│   └── sample_configs/
 ├── docs/
 │   ├── README.md
-│   ├── API.md
-│   └── examples/
-├── requirements/
-│   ├── base.txt
-│   ├── dev.txt
-│   └── prod.txt
-├── pyproject.toml
-├── setup.py
-├── Makefile
-└── .github/
-    └── workflows/
-        └── ci.yml
-"""
+│   ├── api_reference.md
+│   ├── user_guide.md
+│   └── deployment.md
+└── scripts/
+    ├── setup.sh
+    ├── deploy.sh
+    └── run_tests.sh
