@@ -1,128 +1,121 @@
 """
 Job Scheduler for Synthetic Data Generation Platform
-
-Supports cron-based scheduling, job queuing, and automated generation workflows.
+Supports cron-like scheduling, recurring jobs, and integration with APScheduler.
 """
 
 import asyncio
-import json
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, Union
+from dataclasses import dataclass, field
 from enum import Enum
-from dataclasses import dataclass, asdict
-from concurrent.futures import ThreadPoolExecutor
+import json
 import uuid
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
-from apscheduler.job import Job
-from apscheduler.events import (
-    EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED,
-    EVENT_JOB_ADDED, EVENT_JOB_REMOVED, JobExecutionEvent
-)
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.executors.asyncio import AsyncIOExecutor
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
-from .job_manager import JobManager, JobStatus, JobType
-from ..core.data_generator import OptimizedDataGenerator
-from ..core.masking_engine import MaskingEngine
-from ..output.exporter import DataExporter
-from ..utils.config_manager import ConfigManager
-from ..utils.exceptions import SchedulerError
+from .jobs.job_manager import JobManager, JobStatus
+from .core.data_generator import OptimizedDataGenerator
+from .utils.config_manager import ConfigManager
+from .utils.exceptions import SchedulerError
+from .output.audit_logger import AuditLogger
 
 logger = logging.getLogger(__name__)
 
 
-class ScheduleType(Enum):
-    """Types of scheduling triggers"""
-    CRON = "cron"
+class ScheduleType(str, Enum):
+    """Types of scheduling."""
+    ONCE = "once"
     INTERVAL = "interval"
-    ONE_TIME = "one_time"
+    CRON = "cron"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
 
 
-class ScheduleStatus(Enum):
-    """Schedule status"""
+class ScheduleStatus(str, Enum):
+    """Status of scheduled jobs."""
     ACTIVE = "active"
     PAUSED = "paused"
-    DISABLED = "disabled"
     EXPIRED = "expired"
+    CANCELLED = "cancelled"
 
 
 @dataclass
-class ScheduleConfig:
-    """Configuration for a scheduled job"""
+class ScheduledJob:
+    """Configuration for a scheduled job."""
     schedule_id: str
     name: str
-    description: str
-    schedule_type: ScheduleType
-    trigger_config: Dict[str, Any]  # Cron expression, interval config, etc.
-    generation_config: Dict[str, Any]  # Data generation parameters
-    status: ScheduleStatus
-    created_at: datetime
-    created_by: str
-    next_run_time: Optional[datetime] = None
-    last_run_time: Optional[datetime] = None
+    description: Optional[str] = None
+    schedule_type: ScheduleType = ScheduleType.ONCE
+    trigger_config: Dict[str, Any] = field(default_factory=dict)
+    job_config: Dict[str, Any] = field(default_factory=dict)
+    status: ScheduleStatus = ScheduleStatus.ACTIVE
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=datetime.utcnow)
+    last_run: Optional[datetime] = None
+    next_run: Optional[datetime] = None
     run_count: int = 0
     max_runs: Optional[int] = None
-    retry_config: Optional[Dict[str, Any]] = None
-    notification_config: Optional[Dict[str, Any]] = None
+    tags: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_by: Optional[str] = None
 
 
 class DataGenerationScheduler:
-    """Main scheduler class for managing automated data generation jobs"""
+    """Main scheduler for data generation jobs."""
 
-    def __init__(self, job_manager: JobManager, config: Dict[str, Any] = None):
-        self.job_manager = job_manager
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
-        self.scheduler = AsyncIOScheduler(
-            timezone=self.config.get('timezone', 'UTC'),
-            job_defaults={
-                'coalesce': True,
-                'max_instances': self.config.get('max_concurrent_jobs', 3),
-                'misfire_grace_time': self.config.get('misfire_grace_time', 300)  # 5 minutes
-            }
-        )
+        self.scheduled_jobs: Dict[str, ScheduledJob] = {}
+        self.job_manager = JobManager()
+        self.config_manager = ConfigManager()
+        self.audit_logger = AuditLogger()
 
-        self.schedules: Dict[str, ScheduleConfig] = {}
-        self.thread_pool = ThreadPoolExecutor(
-            max_workers=self.config.get('max_worker_threads', 4)
-        )
-
-        # Set up event listeners
-        self._setup_event_listeners()
-
+        # Configure APScheduler
+        self.scheduler = self._create_scheduler()
         self.is_running = False
 
-    def _setup_event_listeners(self):
-        """Set up APScheduler event listeners"""
-        self.scheduler.add_listener(
-            self._on_job_executed,
-            EVENT_JOB_EXECUTED
+    def _create_scheduler(self) -> AsyncIOScheduler:
+        """Create and configure APScheduler instance."""
+        jobstores = {
+            'default': SQLAlchemyJobStore(
+                url=self.config.get('database_url', 'sqlite:///scheduler.db')
+            )
+        }
+
+        executors = {
+            'default': AsyncIOExecutor()
+        }
+
+        job_defaults = {
+            'coalesce': True,
+            'max_instances': self.config.get('max_concurrent_jobs', 3),
+            'misfire_grace_time': self.config.get('misfire_grace_time', 300)  # 5 minutes
+        }
+
+        scheduler = AsyncIOScheduler(
+            jobstores=jobstores,
+            executors=executors,
+            job_defaults=job_defaults,
+            timezone='UTC'
         )
 
-        self.scheduler.add_listener(
-            self._on_job_error,
-            EVENT_JOB_ERROR
-        )
+        # Add event listeners
+        scheduler.add_listener(self._job_executed, EVENT_JOB_EXECUTED)
+        scheduler.add_listener(self._job_error, EVENT_JOB_ERROR)
+        scheduler.add_listener(self._job_missed, EVENT_JOB_MISSED)
 
-        self.scheduler.add_listener(
-            self._on_job_missed,
-            EVENT_JOB_MISSED
-        )
-
-        self.scheduler.add_listener(
-            self._on_job_added,
-            EVENT_JOB_ADDED
-        )
-
-        self.scheduler.add_listener(
-            self._on_job_removed,
-            EVENT_JOB_REMOVED
-        )
+        return scheduler
 
     async def start(self):
-        """Start the scheduler"""
+        """Start the scheduler."""
         if self.is_running:
             logger.warning("Scheduler is already running")
             return
@@ -130,76 +123,78 @@ class DataGenerationScheduler:
         try:
             self.scheduler.start()
             self.is_running = True
-            logger.info("Data generation scheduler started successfully")
+            logger.info("Scheduler started successfully")
 
-            # Load existing schedules from storage
-            await self._load_schedules()
+            # Log startup
+            await self.audit_logger.log_system_event(
+                event_type="SCHEDULER_STARTED",
+                metadata={"scheduler_id": id(self)}
+            )
 
         except Exception as e:
             logger.error(f"Failed to start scheduler: {str(e)}")
             raise SchedulerError(f"Failed to start scheduler: {str(e)}")
 
-    async def shutdown(self):
-        """Shutdown the scheduler gracefully"""
+    async def stop(self):
+        """Stop the scheduler."""
         if not self.is_running:
+            logger.warning("Scheduler is not running")
             return
 
         try:
-            logger.info("Shutting down data generation scheduler")
-
-            # Save current schedules
-            await self._save_schedules()
-
-            # Shutdown scheduler
             self.scheduler.shutdown(wait=True)
-
-            # Shutdown thread pool
-            self.thread_pool.shutdown(wait=True)
-
             self.is_running = False
-            logger.info("Scheduler shutdown completed")
+            logger.info("Scheduler stopped successfully")
+
+            # Log shutdown
+            await self.audit_logger.log_system_event(
+                event_type="SCHEDULER_STOPPED",
+                metadata={"scheduler_id": id(self)}
+            )
 
         except Exception as e:
-            logger.error(f"Error during scheduler shutdown: {str(e)}")
+            logger.error(f"Error stopping scheduler: {str(e)}")
+            raise SchedulerError(f"Error stopping scheduler: {str(e)}")
 
-    async def create_schedule(
-            self,
-            name: str,
-            description: str,
-            schedule_type: ScheduleType,
-            trigger_config: Dict[str, Any],
-            generation_config: Dict[str, Any],
-            created_by: str = "system",
-            max_runs: Optional[int] = None,
-            retry_config: Optional[Dict[str, Any]] = None,
-            notification_config: Optional[Dict[str, Any]] = None
+    async def schedule_job(
+        self,
+        name: str,
+        job_config: Dict[str, Any],
+        schedule_type: ScheduleType,
+        trigger_config: Dict[str, Any],
+        description: Optional[str] = None,
+        tags: List[str] = None,
+        metadata: Dict[str, Any] = None,
+        created_by: Optional[str] = None,
+        max_runs: Optional[int] = None
     ) -> str:
-        """Create a new scheduled job"""
+        """Schedule a new data generation job."""
+        schedule_id = str(uuid.uuid4())
+
         try:
-            schedule_id = str(uuid.uuid4())
-
-            # Validate trigger configuration
-            trigger = self._create_trigger(schedule_type, trigger_config)
-
-            # Create schedule configuration
-            schedule_config = ScheduleConfig(
+            # Create scheduled job record
+            scheduled_job = ScheduledJob(
                 schedule_id=schedule_id,
                 name=name,
                 description=description,
                 schedule_type=schedule_type,
                 trigger_config=trigger_config,
-                generation_config=generation_config,
-                status=ScheduleStatus.ACTIVE,
-                created_at=datetime.utcnow(),
+                job_config=job_config,
+                tags=tags or [],
+                metadata=metadata or {},
                 created_by=created_by,
-                max_runs=max_runs,
-                retry_config=retry_config or {"max_retries": 3, "retry_delay": 60},
-                notification_config=notification_config
+                max_runs=max_runs
             )
 
-            # Add job to scheduler
-            job = self.scheduler.add_job(
-                func=self._execute_scheduled_generation,
+            # Validate job configuration
+            self.config_manager.validate_config(job_config)
+
+            # Create APScheduler trigger
+            trigger = self._create_trigger(schedule_type, trigger_config)
+
+            # Schedule the job
+            self.scheduler.add_job(
+                func=self._execute_scheduled_job,
                 trigger=trigger,
                 args=[schedule_id],
                 id=schedule_id,
@@ -207,301 +202,376 @@ class DataGenerationScheduler:
                 replace_existing=True
             )
 
-            # Store schedule configuration
-            self.schedules[schedule_id] = schedule_config
-            schedule_config.next_run_time = job.next_run_time
+            # Store scheduled job
+            self.scheduled_jobs[schedule_id] = scheduled_job
 
-            logger.info(f"Created schedule '{name}' with ID: {schedule_id}")
+            # Update next run time
+            apscheduler_job = self.scheduler.get_job(schedule_id)
+            if apscheduler_job:
+                scheduled_job.next_run = apscheduler_job.next_run_time
 
-            # Save to persistent storage
-            await self._save_schedules()
+            logger.info(f"Successfully scheduled job '{name}' with ID {schedule_id}")
+
+            # Log scheduling
+            await self.audit_logger.log_system_event(
+                event_type="JOB_SCHEDULED",
+                metadata={
+                    "schedule_id": schedule_id,
+                    "name": name,
+                    "schedule_type": schedule_type.value,
+                    "created_by": created_by
+                }
+            )
 
             return schedule_id
 
         except Exception as e:
-            logger.error(f"Failed to create schedule: {str(e)}")
-            raise SchedulerError(f"Failed to create schedule: {str(e)}")
+            logger.error(f"Failed to schedule job '{name}': {str(e)}")
+            raise SchedulerError(f"Failed to schedule job: {str(e)}")
 
     def _create_trigger(self, schedule_type: ScheduleType, config: Dict[str, Any]):
-        """Create APScheduler trigger from configuration"""
-        if schedule_type == ScheduleType.CRON:
-            return CronTrigger(**config)
+        """Create APScheduler trigger based on schedule type and configuration."""
+        if schedule_type == ScheduleType.ONCE:
+            run_date = config.get('run_date')
+            if isinstance(run_date, str):
+                run_date = datetime.fromisoformat(run_date)
+            return DateTrigger(run_date=run_date)
+
         elif schedule_type == ScheduleType.INTERVAL:
-            return IntervalTrigger(**config)
-        elif schedule_type == ScheduleType.ONE_TIME:
-            return DateTrigger(run_date=config.get('run_date'))
+            return IntervalTrigger(
+                seconds=config.get('seconds', 0),
+                minutes=config.get('minutes', 0),
+                hours=config.get('hours', 0),
+                days=config.get('days', 0),
+                weeks=config.get('weeks', 0),
+                start_date=config.get('start_date'),
+                end_date=config.get('end_date')
+            )
+
+        elif schedule_type == ScheduleType.CRON:
+            return CronTrigger(
+                year=config.get('year'),
+                month=config.get('month'),
+                day=config.get('day'),
+                week=config.get('week'),
+                day_of_week=config.get('day_of_week'),
+                hour=config.get('hour'),
+                minute=config.get('minute'),
+                second=config.get('second'),
+                start_date=config.get('start_date'),
+                end_date=config.get('end_date'),
+                timezone=config.get('timezone', 'UTC')
+            )
+
+        elif schedule_type == ScheduleType.DAILY:
+            return CronTrigger(
+                hour=config.get('hour', 0),
+                minute=config.get('minute', 0),
+                second=config.get('second', 0)
+            )
+
+        elif schedule_type == ScheduleType.WEEKLY:
+            return CronTrigger(
+                day_of_week=config.get('day_of_week', 0),
+                hour=config.get('hour', 0),
+                minute=config.get('minute', 0),
+                second=config.get('second', 0)
+            )
+
+        elif schedule_type == ScheduleType.MONTHLY:
+            return CronTrigger(
+                day=config.get('day', 1),
+                hour=config.get('hour', 0),
+                minute=config.get('minute', 0),
+                second=config.get('second', 0)
+            )
+
         else:
-            raise ValueError(f"Unsupported schedule type: {schedule_type}")
+            raise SchedulerError(f"Unsupported schedule type: {schedule_type}")
 
-    async def update_schedule(
-            self,
-            schedule_id: str,
-            updates: Dict[str, Any]
-    ) -> bool:
-        """Update an existing schedule"""
+    async def _execute_scheduled_job(self, schedule_id: str):
+        """Execute a scheduled data generation job."""
+        scheduled_job = self.scheduled_jobs.get(schedule_id)
+        if not scheduled_job:
+            logger.error(f"Scheduled job {schedule_id} not found")
+            return
+
         try:
-            if schedule_id not in self.schedules:
-                raise ValueError(f"Schedule {schedule_id} not found")
+            logger.info(f"Executing scheduled job: {scheduled_job.name}")
 
-            schedule = self.schedules[schedule_id]
+            # Check if job should still run
+            if scheduled_job.status != ScheduleStatus.ACTIVE:
+                logger.info(f"Skipping inactive scheduled job: {scheduled_job.name}")
+                return
 
-            # Update allowed fields
-            for field, value in updates.items():
-                if hasattr(schedule, field) and field not in ['schedule_id', 'created_at']:
-                    setattr(schedule, field, value)
+            # Check max runs limit
+            if scheduled_job.max_runs and scheduled_job.run_count >= scheduled_job.max_runs:
+                logger.info(f"Scheduled job {scheduled_job.name} has reached max runs limit")
+                await self.pause_scheduled_job(schedule_id)
+                return
 
-            # If trigger config changed, update the scheduled job
-            if 'trigger_config' in updates:
-                trigger = self._create_trigger(schedule.schedule_type, schedule.trigger_config)
-                self.scheduler.modify_job(schedule_id, trigger=trigger)
-
-                # Update next run time
-                job = self.scheduler.get_job(schedule_id)
-                if job:
-                    schedule.next_run_time = job.next_run_time
-
-            await self._save_schedules()
-            logger.info(f"Updated schedule {schedule_id}")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to update schedule {schedule_id}: {str(e)}")
-            raise SchedulerError(f"Failed to update schedule: {str(e)}")
-
-    async def delete_schedule(self, schedule_id: str) -> bool:
-        """Delete a schedule"""
-        try:
-            if schedule_id not in self.schedules:
-                return False
-
-            # Remove from scheduler
-            self.scheduler.remove_job(schedule_id)
-
-            # Remove from memory
-            del self.schedules[schedule_id]
-
-            # Save changes
-            await self._save_schedules()
-
-            logger.info(f"Deleted schedule {schedule_id}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to delete schedule {schedule_id}: {str(e)}")
-            return False
-
-    async def pause_schedule(self, schedule_id: str) -> bool:
-        """Pause a schedule"""
-        try:
-            if schedule_id not in self.schedules:
-                return False
-
-            self.scheduler.pause_job(schedule_id)
-            self.schedules[schedule_id].status = ScheduleStatus.PAUSED
-
-            await self._save_schedules()
-            logger.info(f"Paused schedule {schedule_id}")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to pause schedule {schedule_id}: {str(e)}")
-            return False
-
-    async def resume_schedule(self, schedule_id: str) -> bool:
-        """Resume a paused schedule"""
-        try:
-            if schedule_id not in self.schedules:
-                return False
-
-            self.scheduler.resume_job(schedule_id)
-            self.schedules[schedule_id].status = ScheduleStatus.ACTIVE
-
-            # Update next run time
-            job = self.scheduler.get_job(schedule_id)
-            if job:
-                self.schedules[schedule_id].next_run_time = job.next_run_time
-
-            await self._save_schedules()
-            logger.info(f"Resumed schedule {schedule_id}")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to resume schedule {schedule_id}: {str(e)}")
-            return False
-
-    async def trigger_schedule_now(self, schedule_id: str) -> str:
-        """Trigger a schedule immediately (one-time execution)"""
-        try:
-            if schedule_id not in self.schedules:
-                raise ValueError(f"Schedule {schedule_id} not found")
-
-            # Execute the generation job directly
-            job_id = await self._execute_scheduled_generation(schedule_id, manual_trigger=True)
-
-            logger.info(f"Manually triggered schedule {schedule_id}, job ID: {job_id}")
-            return job_id
-
-        except Exception as e:
-            logger.error(f"Failed to trigger schedule {schedule_id}: {str(e)}")
-            raise SchedulerError(f"Failed to trigger schedule: {str(e)}")
-
-    async def get_schedule(self, schedule_id: str) -> Optional[ScheduleConfig]:
-        """Get schedule configuration"""
-        return self.schedules.get(schedule_id)
-
-    async def list_schedules(
-            self,
-            status_filter: Optional[ScheduleStatus] = None,
-            created_by: Optional[str] = None
-    ) -> List[ScheduleConfig]:
-        """List all schedules with optional filtering"""
-        schedules = list(self.schedules.values())
-
-        if status_filter:
-            schedules = [s for s in schedules if s.status == status_filter]
-
-        if created_by:
-            schedules = [s for s in schedules if s.created_by == created_by]
-
-        return schedules
-
-    async def get_schedule_stats(self) -> Dict[str, Any]:
-        """Get scheduler statistics"""
-        total_schedules = len(self.schedules)
-        active_schedules = len([s for s in self.schedules.values() if s.status == ScheduleStatus.ACTIVE])
-        paused_schedules = len([s for s in self.schedules.values() if s.status == ScheduleStatus.PAUSED])
-
-        # Get next scheduled job
-        next_job = None
-        next_run_time = None
-        for job in self.scheduler.get_jobs():
-            if not next_run_time or (job.next_run_time and job.next_run_time < next_run_time):
-                next_run_time = job.next_run_time
-                next_job = job.name
-
-        return {
-            "total_schedules": total_schedules,
-            "active_schedules": active_schedules,
-            "paused_schedules": paused_schedules,
-            "disabled_schedules": total_schedules - active_schedules - paused_schedules,
-            "next_job": next_job,
-            "next_run_time": next_run_time.isoformat() if next_run_time else None,
-            "scheduler_running": self.is_running
-        }
-
-    async def _execute_scheduled_generation(
-            self,
-            schedule_id: str,
-            manual_trigger: bool = False
-    ) -> str:
-        """Execute the actual data generation for a scheduled job"""
-        try:
-            if schedule_id not in self.schedules:
-                raise ValueError(f"Schedule {schedule_id} not found")
-
-            schedule = self.schedules[schedule_id]
-
-            logger.info(f"Executing scheduled generation: {schedule.name} (ID: {schedule_id})")
-
-            # Check if schedule has reached max runs
-            if schedule.max_runs and schedule.run_count >= schedule.max_runs:
-                logger.info(f"Schedule {schedule_id} has reached max runs limit")
-                schedule.status = ScheduleStatus.EXPIRED
-                return None
-
-            # Create a job in the job manager
+            # Create execution job
             job_id = str(uuid.uuid4())
-            job_name = f"{schedule.name}_scheduled_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-
-            job = await self.job_manager.create_job(
+            await self.job_manager.create_job(
                 job_id=job_id,
-                job_type=JobType.SCHEDULED_GENERATION,
-                name=job_name,
-                config=schedule.generation_config,
-                created_by=schedule.created_by,
-                parent_schedule_id=schedule_id
+                job_type="generate",
+                config=scheduled_job.job_config,
+                priority="normal",
+                tags=scheduled_job.tags + ["scheduled"],
+                metadata={
+                    "schedule_id": schedule_id,
+                    "scheduled_job_name": scheduled_job.name,
+                    "run_number": scheduled_job.run_count + 1
+                }
             )
 
-            # Execute generation in thread pool to avoid blocking scheduler
-            future = self.thread_pool.submit(
-                self._run_generation_with_retry,
-                job_id,
-                schedule.generation_config,
-                schedule.retry_config
+            # Execute the job
+            generator = OptimizedDataGenerator(
+                config=scheduled_job.job_config,
+                audit_logger=self.audit_logger
             )
 
-            # Update schedule stats
-            schedule.run_count += 1
-            schedule.last_run_time = datetime.utcnow()
+            result = await generator.generate_async()
+
+            # Update scheduled job statistics
+            scheduled_job.last_run = datetime.utcnow()
+            scheduled_job.run_count += 1
+            scheduled_job.updated_at = datetime.utcnow()
 
             # Update next run time
-            if not manual_trigger:
-                scheduled_job = self.scheduler.get_job(schedule_id)
-                if scheduled_job:
-                    schedule.next_run_time = scheduled_job.next_run_time
+            apscheduler_job = self.scheduler.get_job(schedule_id)
+            if apscheduler_job:
+                scheduled_job.next_run = apscheduler_job.next_run_time
 
-            await self._save_schedules()
+            # Complete the job
+            await self.job_manager.complete_job(job_id, result)
 
-            return job_id
+            logger.info(f"Successfully executed scheduled job: {scheduled_job.name}")
+
+            # Log execution
+            await self.audit_logger.log_system_event(
+                event_type="SCHEDULED_JOB_EXECUTED",
+                metadata={
+                    "schedule_id": schedule_id,
+                    "job_id": job_id,
+                    "run_count": scheduled_job.run_count,
+                    "rows_generated": result.get("total_rows", 0)
+                }
+            )
 
         except Exception as e:
-            logger.error(f"Failed to execute scheduled generation {schedule_id}: {str(e)}")
+            logger.error(f"Error executing scheduled job {scheduled_job.name}: {str(e)}")
 
-            # Send notification if configured
-            if schedule_id in self.schedules:
-                await self._send_failure_notification(
-                    self.schedules[schedule_id],
-                    str(e)
-                )
+            # Log error
+            await self.audit_logger.log_system_event(
+                event_type="SCHEDULED_JOB_ERROR",
+                metadata={
+                    "schedule_id": schedule_id,
+                    "error": str(e)
+                }
+            )
 
             raise
 
-    def _run_generation_with_retry(
-            self,
-            job_id: str,
-            generation_config: Dict[str, Any],
-            retry_config: Dict[str, Any]
-    ):
-        """Run data generation with retry logic"""
-        max_retries = retry_config.get('max_retries', 3)
-        retry_delay = retry_config.get('retry_delay', 60)
+    async def get_scheduled_job(self, schedule_id: str) -> Optional[ScheduledJob]:
+        """Get a scheduled job by ID."""
+        return self.scheduled_jobs.get(schedule_id)
 
-        for attempt in range(max_retries + 1):
-            try:
-                # Run the actual generation
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+    async def list_scheduled_jobs(
+        self,
+        status_filter: Optional[ScheduleStatus] = None,
+        tags_filter: List[str] = None
+    ) -> List[ScheduledJob]:
+        """List all scheduled jobs with optional filtering."""
+        jobs = list(self.scheduled_jobs.values())
 
-                try:
-                    result = loop.run_until_complete(
-                        self._run_data_generation(job_id, generation_config)
-                    )
-                    return result
-                finally:
-                    loop.close()
+        if status_filter:
+            jobs = [job for job in jobs if job.status == status_filter]
 
-            except Exception as e:
-                logger.error(f"Generation attempt {attempt + 1} failed for job {job_id}: {str(e)}")
+        if tags_filter:
+            jobs = [job for job in jobs if any(tag in job.tags for tag in tags_filter)]
 
-                if attempt < max_retries:
-                    logger.info(f"Retrying in {retry_delay} seconds...")
-                    asyncio.sleep(retry_delay)
-                else:
-                    # Mark job as failed
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
+        return jobs
 
-                    try:
-                        loop.run_until_complete(
-                            self.job_manager.fail_job(job_id, f"Failed after {max_retries} retries: {str(e)}")
-                        )
-                    finally:
-                        loop.close()
+    async def pause_scheduled_job(self, schedule_id: str) -> bool:
+        """Pause a scheduled job."""
+        scheduled_job = self.scheduled_jobs.get(schedule_id)
+        if not scheduled_job:
+            return False
 
-                    raise
+        try:
+            self.scheduler.pause_job(schedule_id)
+            scheduled_job.status = ScheduleStatus.PAUSED
+            scheduled_job.updated_at = datetime.utcnow()
 
-    async def _run_data_generation(
-            self
+            logger.info(f"Paused scheduled job: {scheduled_job.name}")
+
+            # Log pause
+            await self.audit_logger.log_system_event(
+                event_type="SCHEDULED_JOB_PAUSED",
+                metadata={"schedule_id": schedule_id}
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error pausing scheduled job {schedule_id}: {str(e)}")
+            return False
+
+    async def resume_scheduled_job(self, schedule_id: str) -> bool:
+        """Resume a paused scheduled job."""
+        scheduled_job = self.scheduled_jobs.get(schedule_id)
+        if not scheduled_job:
+            return False
+
+        try:
+            self.scheduler.resume_job(schedule_id)
+            scheduled_job.status = ScheduleStatus.ACTIVE
+            scheduled_job.updated_at = datetime.utcnow()
+
+            # Update next run time
+            apscheduler_job = self.scheduler.get_job(schedule_id)
+            if apscheduler_job:
+                scheduled_job.next_run = apscheduler_job.next_run_time
+
+            logger.info(f"Resumed scheduled job: {scheduled_job.name}")
+
+            # Log resume
+            await self.audit_logger.log_system_event(
+                event_type="SCHEDULED_JOB_RESUMED",
+                metadata={"schedule_id": schedule_id}
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error resuming scheduled job {schedule_id}: {str(e)}")
+            return False
+
+    async def cancel_scheduled_job(self, schedule_id: str) -> bool:
+        """Cancel a scheduled job."""
+        scheduled_job = self.scheduled_jobs.get(schedule_id)
+        if not scheduled_job:
+            return False
+
+        try:
+            self.scheduler.remove_job(schedule_id)
+            scheduled_job.status = ScheduleStatus.CANCELLED
+            scheduled_job.updated_at = datetime.utcnow()
+
+            logger.info(f"Cancelled scheduled job: {scheduled_job.name}")
+
+            # Log cancellation
+            await self.audit_logger.log_system_event(
+                event_type="SCHEDULED_JOB_CANCELLED",
+                metadata={"schedule_id": schedule_id}
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error cancelling scheduled job {schedule_id}: {str(e)}")
+            return False
+
+    async def update_scheduled_job(
+        self,
+        schedule_id: str,
+        updates: Dict[str, Any]
+    ) -> bool:
+        """Update a scheduled job configuration."""
+        scheduled_job = self.scheduled_jobs.get(schedule_id)
+        if not scheduled_job:
+            return False
+
+        try:
+            # Update job configuration if provided
+            if 'job_config' in updates:
+                self.config_manager.validate_config(updates['job_config'])
+                scheduled_job.job_config = updates['job_config']
+
+            # Update schedule configuration if provided
+            if 'trigger_config' in updates:
+                trigger = self._create_trigger(scheduled_job.schedule_type, updates['trigger_config'])
+                self.scheduler.reschedule_job(schedule_id, trigger=trigger)
+                scheduled_job.trigger_config = updates['trigger_config']
+
+                # Update next run time
+                apscheduler_job = self.scheduler.get_job(schedule_id)
+                if apscheduler_job:
+                    scheduled_job.next_run = apscheduler_job.next_run_time
+
+            # Update other fields
+            for field in ['name', 'description', 'tags', 'metadata', 'max_runs']:
+                if field in updates:
+                    setattr(scheduled_job, field, updates[field])
+
+            scheduled_job.updated_at = datetime.utcnow()
+
+            logger.info(f"Updated scheduled job: {scheduled_job.name}")
+
+            # Log update
+            await self.audit_logger.log_system_event(
+                event_type="SCHEDULED_JOB_UPDATED",
+                metadata={"schedule_id": schedule_id, "updates": list(updates.keys())}
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating scheduled job {schedule_id}: {str(e)}")
+            return False
+
+    async def get_scheduler_stats(self) -> Dict[str, Any]:
+        """Get scheduler statistics."""
+        stats = {
+            "is_running": self.is_running,
+            "total_scheduled_jobs": len(self.scheduled_jobs),
+            "active_jobs": len([j for j in self.scheduled_jobs.values() if j.status == ScheduleStatus.ACTIVE]),
+            "paused_jobs": len([j for j in self.scheduled_jobs.values() if j.status == ScheduleStatus.PAUSED]),
+            "cancelled_jobs": len([j for j in self.scheduled_jobs.values() if j.status == ScheduleStatus.CANCELLED]),
+            "total_executions": sum(j.run_count for j in self.scheduled_jobs.values()),
+            "next_jobs": []
+        }
+
+        # Get next scheduled jobs
+        for job in self.scheduled_jobs.values():
+            if job.status == ScheduleStatus.ACTIVE and job.next_run:
+                stats["next_jobs"].append({
+                    "schedule_id": job.schedule_id,
+                    "name": job.name,
+                    "next_run": job.next_run.isoformat(),
+                    "schedule_type": job.schedule_type.value
+                })
+
+        # Sort by next run time
+        stats["next_jobs"].sort(key=lambda x: x["next_run"])
+        stats["next_jobs"] = stats["next_jobs"][:10]  # Limit to next 10 jobs
+
+        return stats
+
+    # Event handlers
+    async def _job_executed(self, event):
+        """Handle job execution events."""
+        logger.debug(f"Job {event.job_id} executed successfully")
+
+    async def _job_error(self, event):
+        """Handle job error events."""
+        logger.error(f"Job {event.job_id} failed: {event.exception}")
+
+    async def _job_missed(self, event):
+        """Handle missed job events."""
+        logger.warning(f"Job {event.job_id} was missed")
+
+
+# Utility functions for common scheduling patterns
+def create_daily_schedule(hour: int = 0, minute: int = 0) -> Dict[str, Any]:
+    """Create a daily schedule configuration."""
+    return {
+        "hour": hour,
+        "minute": minute,
+        "second": 0
+    }
+
+
+def create_weekly_schedule(day_of_week: int = 0, hour: int = 0, minute: int = 0) -> Dict[str, Any]:
+    """Create a weekly schedule configuration."""

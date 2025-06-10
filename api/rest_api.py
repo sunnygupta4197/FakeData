@@ -1,7 +1,6 @@
 """
-FastAPI-based REST API for Synthetic Data Generation Platform
-
-Provides endpoints for job management, generation triggering, and status monitoring.
+FastAPI REST API for Synthetic Data Generation Platform
+Provides endpoints for job management, status checking, and configuration.
 """
 
 import asyncio
@@ -9,146 +8,125 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from enum import Enum
-from contextlib import asynccontextmanager
-
-import uvicorn
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, status, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, Field, validator
 import logging
+from pathlib import Path
+import json
 
-from .core.data_generator import OptimizedDataGenerator
-from .core.masking_engine import MaskingEngine, MaskingRule, SensitivityLevel, MaskingStrategy
-from .output.exporter import DataExporter
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, status, UploadFile, File
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field, validator
+import uvicorn
+
+from .jobs.job_manager import JobManager, JobStatus
 from .utils.config_manager import ConfigManager
-from .utils.exceptions import GenerationError, ValidationError
-from .jobs.job_manager import JobManager, JobStatus, JobType
+from .utils.exceptions import ConfigurationError, GenerationError
+from .core.data_generator import OptimizedDataGenerator
+from .output.audit_logger import AuditLogger
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Pydantic Models for API
-class GenerationStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
+# Security
+security = HTTPBearer(auto_error=False)
+
+# Global instances
+job_manager = JobManager()
+config_manager = ConfigManager()
+audit_logger = AuditLogger()
 
 
-class ColumnConfig(BaseModel):
-    name: str
-    type: str
-    constraint: Optional[List[str]] = None
-    rule: Optional[Any] = None
-    sensitivity: Optional[str] = None
+class JobType(str, Enum):
+    """Types of generation jobs."""
+    GENERATE = "generate"
+    VALIDATE = "validate"
+    MASK = "mask"
+    EXPORT = "export"
 
 
-class ForeignKeyConfig(BaseModel):
-    parent_table: str
-    parent_column: str
-    child_column: str
+class Priority(str, Enum):
+    """Job priority levels."""
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    URGENT = "urgent"
 
 
-class TableConfig(BaseModel):
-    table_name: str
-    columns: List[ColumnConfig]
-    foreign_keys: Optional[List[ForeignKeyConfig]] = None
-    rows: Optional[int] = None
-
-
-class GenerationRequest(BaseModel):
-    tables: List[TableConfig]
+# Pydantic Models
+class GenerationConfig(BaseModel):
+    """Configuration for data generation."""
+    tables: List[Dict[str, Any]]
     locale: str = "en_US"
-    rows: int = Field(gt=0, le=1000000, description="Number of rows to generate")
-    export_format: str = Field(default="json", regex="^(csv|json|parquet|sql)$")
+    rows: int = Field(default=1000, ge=1, le=10000000)
+    output_format: str = Field(default="csv", regex="^(csv|json|parquet|sql)$")
+    output_path: Optional[str] = None
+    mask_sensitive: bool = False
     export_destination: Optional[str] = None
-    apply_masking: bool = False
-    masking_rules: Optional[List[Dict[str, Any]]] = None
-    job_name: Optional[str] = None
 
-    @validator('rows')
-    def validate_rows(cls, v):
-        if v <= 0:
-            raise ValueError('Rows must be positive')
+    @validator('tables')
+    def validate_tables(cls, v):
+        if not v:
+            raise ValueError("At least one table must be specified")
         return v
 
 
+class JobRequest(BaseModel):
+    """Request model for creating a new job."""
+    job_type: JobType
+    config: GenerationConfig
+    priority: Priority = Priority.NORMAL
+    scheduled_time: Optional[datetime] = None
+    tags: List[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class JobResponse(BaseModel):
+    """Response model for job information."""
     job_id: str
-    status: GenerationStatus
-    message: str
+    job_type: JobType
+    status: JobStatus
+    priority: Priority
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    progress: Optional[float] = None
+    progress: float = 0.0
+    message: Optional[str] = None
     error: Optional[str] = None
     result: Optional[Dict[str, Any]] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class JobListResponse(BaseModel):
+    """Response model for job listing."""
     jobs: List[JobResponse]
     total: int
     page: int
     page_size: int
 
 
-class HealthResponse(BaseModel):
-    status: str
-    timestamp: datetime
-    version: str
-    dependencies: Dict[str, str]
+class SystemStats(BaseModel):
+    """System statistics and health information."""
+    total_jobs: int
+    active_jobs: int
+    completed_jobs: int
+    failed_jobs: int
+    system_load: float
+    memory_usage: float
+    uptime: str
 
 
-class MaskingRuleRequest(BaseModel):
-    field_name: str
-    sensitivity_level: str
-    strategy: str
-    strategy_params: Optional[Dict[str, Any]] = None
-    deterministic: bool = True
-
-
-# Global job manager instance
-job_manager = JobManager()
-
-# Security
-security = HTTPBearer(auto_error=False)
-
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Simple bearer token authentication - enhance as needed"""
-    if not credentials:
-        return None
-
-    # TODO: Implement proper JWT token validation
-    # For now, just check if token exists and is not empty
-    if credentials.credentials:
-        return {"user_id": "api_user", "roles": ["user"]}
-
-    return None
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Lifespan context manager for startup/shutdown"""
-    # Startup
-    logger.info("Starting Synthetic Data Generation API")
-    yield
-    # Shutdown
-    logger.info("Shutting down Synthetic Data Generation API")
-    await job_manager.shutdown()
-
-
-# Initialize FastAPI app
+# FastAPI App
 app = FastAPI(
     title="Synthetic Data Generation Platform API",
-    description="REST API for generating synthetic data with masking and relationship preservation",
+    description="REST API for managing synthetic data generation jobs",
     version="1.0.0",
-    lifespan=lifespan
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
-# Add CORS middleware
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Configure appropriately for production
@@ -158,454 +136,431 @@ app.add_middleware(
 )
 
 
-# API Endpoints
+# Dependency for authentication
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Basic authentication dependency."""
+    if not credentials:
+        return None
 
-@app.get("/health", response_model=HealthResponse)
+    # Implement your authentication logic here
+    # For now, just return a mock user
+    return {"user_id": "anonymous", "role": "user"}
+
+
+# Health check endpoint
+@app.get("/health", tags=["System"])
 async def health_check():
-    """Health check endpoint"""
-    return HealthResponse(
-        status="healthy",
-        timestamp=datetime.utcnow(),
-        version="1.0.0",
-        dependencies={
-            "faker": "available",
-            "pandas": "available",
-            "fastapi": "available"
-        }
-    )
+    """Health check endpoint."""
+    return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 
-@app.post("/generate", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
-async def generate_data(
-    request: GenerationRequest,
+# System statistics
+@app.get("/stats", response_model=SystemStats, tags=["System"])
+async def get_system_stats():
+    """Get system statistics and health information."""
+    stats = job_manager.get_system_stats()
+    return SystemStats(**stats)
+
+
+# Job Management Endpoints
+@app.post("/jobs", response_model=JobResponse, status_code=status.HTTP_201_CREATED, tags=["Jobs"])
+async def create_job(
+    job_request: JobRequest,
     background_tasks: BackgroundTasks,
-    user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
-    """
-    Start a data generation job
-    """
+    """Create a new data generation job."""
     try:
+        # Validate configuration
+        config_manager.validate_config(job_request.config.dict())
+
         # Create job
         job_id = str(uuid.uuid4())
-        job_name = request.job_name or f"generation_job_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-
-        # Register job
         job = await job_manager.create_job(
             job_id=job_id,
-            job_type=JobType.GENERATION,
-            name=job_name,
-            config=request.dict(),
-            created_by=user.get("user_id", "anonymous") if user else "anonymous"
+            job_type=job_request.job_type,
+            config=job_request.config.dict(),
+            priority=job_request.priority,
+            scheduled_time=job_request.scheduled_time,
+            tags=job_request.tags,
+            metadata=job_request.metadata,
+            user_id=current_user.get("user_id") if current_user else None
         )
 
-        # Start background task
-        background_tasks.add_task(
-            _execute_generation_job,
-            job_id,
-            request
-        )
-
-        return JobResponse(
+        # Log job creation
+        await audit_logger.log_job_event(
             job_id=job_id,
-            status=GenerationStatus.PENDING,
-            message="Generation job queued successfully",
-            created_at=job.created_at
+            event_type="JOB_CREATED",
+            user_id=current_user.get("user_id") if current_user else None,
+            metadata={"job_type": job_request.job_type, "priority": job_request.priority}
         )
 
+        # Schedule job execution
+        background_tasks.add_task(execute_job, job_id)
+
+        return JobResponse(**job.dict())
+
+    except ConfigurationError as e:
+        logger.error(f"Configuration error creating job: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating generation job: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create generation job: {str(e)}"
-        )
+        logger.error(f"Error creating job: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/jobs/{job_id}", response_model=JobResponse)
-async def get_job_status(job_id: str, user: dict = Depends(get_current_user)):
-    """Get job status and details"""
-    try:
-        job = await job_manager.get_job(job_id)
-        if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Job not found"
-            )
+@app.get("/jobs/{job_id}", response_model=JobResponse, tags=["Jobs"])
+async def get_job(job_id: str):
+    """Get job details by ID."""
+    job = await job_manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
 
-        return JobResponse(
-            job_id=job.job_id,
-            status=GenerationStatus(job.status.value.lower()),
-            message=job.message or "",
-            created_at=job.created_at,
-            started_at=job.started_at,
-            completed_at=job.completed_at,
-            progress=job.progress,
-            error=job.error_message,
-            result=job.result
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving job {job_id}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve job status"
-        )
+    return JobResponse(**job.dict())
 
 
-@app.get("/jobs", response_model=JobListResponse)
+@app.get("/jobs", response_model=JobListResponse, tags=["Jobs"])
 async def list_jobs(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    status_filter: Optional[str] = Query(None),
-    user: dict = Depends(get_current_user)
+    status_filter: Optional[JobStatus] = None,
+    job_type_filter: Optional[JobType] = None,
+    page: int = Field(default=1, ge=1),
+    page_size: int = Field(default=20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
 ):
-    """List jobs with pagination and filtering"""
+    """List jobs with optional filtering and pagination."""
     try:
-        jobs = await job_manager.list_jobs(
-            page=page,
-            page_size=page_size,
-            status_filter=status_filter,
-            user_id=user.get("user_id") if user else None
-        )
+        filters = {}
+        if status_filter:
+            filters['status'] = status_filter
+        if job_type_filter:
+            filters['job_type'] = job_type_filter
+        if current_user:
+            filters['user_id'] = current_user.get("user_id")
 
-        job_responses = []
-        for job in jobs.get("jobs", []):
-            job_responses.append(JobResponse(
-                job_id=job.job_id,
-                status=GenerationStatus(job.status.value.lower()),
-                message=job.message or "",
-                created_at=job.created_at,
-                started_at=job.started_at,
-                completed_at=job.completed_at,
-                progress=job.progress,
-                error=job.error_message,
-                result=job.result
-            ))
+        jobs, total = await job_manager.list_jobs(
+            filters=filters,
+            page=page,
+            page_size=page_size
+        )
 
         return JobListResponse(
-            jobs=job_responses,
-            total=jobs.get("total", 0),
+            jobs=[JobResponse(**job.dict()) for job in jobs],
+            total=total,
             page=page,
             page_size=page_size
         )
 
     except Exception as e:
         logger.error(f"Error listing jobs: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to list jobs"
-        )
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.delete("/jobs/{job_id}")
-async def cancel_job(job_id: str, user: dict = Depends(get_current_user)):
-    """Cancel a running job"""
+@app.delete("/jobs/{job_id}", tags=["Jobs"])
+async def cancel_job(job_id: str, current_user: dict = Depends(get_current_user)):
+    """Cancel a running job."""
     try:
         success = await job_manager.cancel_job(job_id)
         if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Job not found or cannot be cancelled"
-            )
+            raise HTTPException(status_code=404, detail="Job not found or cannot be cancelled")
+
+        # Log job cancellation
+        await audit_logger.log_job_event(
+            job_id=job_id,
+            event_type="JOB_CANCELLED",
+            user_id=current_user.get("user_id") if current_user else None
+        )
 
         return {"message": "Job cancelled successfully"}
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error cancelling job {job_id}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to cancel job"
-        )
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/jobs/{job_id}/download")
-async def download_job_result(job_id: str, user: dict = Depends(get_current_user)):
-    """Download generated data file"""
+@app.get("/jobs/{job_id}/logs", tags=["Jobs"])
+async def get_job_logs(job_id: str, lines: int = Field(default=100, ge=1, le=10000)):
+    """Get job execution logs."""
+    logs = await job_manager.get_job_logs(job_id, lines)
+    if logs is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return {"job_id": job_id, "logs": logs}
+
+
+@app.get("/jobs/{job_id}/download", tags=["Jobs"])
+async def download_job_result(job_id: str):
+    """Download job result file."""
+    job = await job_manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.status != JobStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail="Job is not completed")
+
+    if not job.result or 'output_path' not in job.result:
+        raise HTTPException(status_code=404, detail="Job result file not found")
+
+    file_path = Path(job.result['output_path'])
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Result file not found on disk")
+
+    return FileResponse(
+        path=file_path,
+        filename=file_path.name,
+        media_type='application/octet-stream'
+    )
+
+
+# Configuration Management Endpoints
+@app.get("/config/validate", tags=["Configuration"])
+async def validate_config(config: GenerationConfig):
+    """Validate a generation configuration."""
     try:
-        job = await job_manager.get_job(job_id)
-        if not job:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Job not found"
-            )
-
-        if job.status != JobStatus.COMPLETED:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Job not completed yet"
-            )
-
-        file_path = job.result.get("output_file")
-        if not file_path:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No output file available"
-            )
-
-        return FileResponse(
-            path=file_path,
-            filename=f"synthetic_data_{job_id}.{job.result.get('format', 'json')}",
-            media_type="application/octet-stream"
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error downloading job result {job_id}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to download job result"
-        )
-
-
-@app.post("/validate-config")
-async def validate_config(request: GenerationRequest):
-    """Validate generation configuration without running the job"""
-    try:
-        # Basic validation through Pydantic model
-        errors = []
-
-        # Additional custom validation
-        table_names = {table.table_name for table in request.tables}
-
-        for table in request.tables:
-            # Check for duplicate column names
-            column_names = [col.name for col in table.columns]
-            if len(column_names) != len(set(column_names)):
-                errors.append(f"Duplicate column names in table '{table.table_name}'")
-
-            # Check foreign key references
-            if table.foreign_keys:
-                for fk in table.foreign_keys:
-                    if fk.parent_table not in table_names:
-                        errors.append(f"Foreign key references unknown table '{fk.parent_table}'")
-
-        if errors:
-            return {"valid": False, "errors": errors}
-
+        config_manager.validate_config(config.dict())
         return {"valid": True, "message": "Configuration is valid"}
-
-    except Exception as e:
-        logger.error(f"Error validating config: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid configuration: {str(e)}"
-        )
+    except ConfigurationError as e:
+        return {"valid": False, "errors": [str(e)]}
 
 
-@app.post("/masking/test")
-async def test_masking(
-    field_name: str,
-    value: str,
-    masking_rule: MaskingRuleRequest
-):
-    """Test masking rule on a sample value"""
+@app.post("/config/upload", tags=["Configuration"])
+async def upload_config(file: UploadFile = File(...)):
+    """Upload and validate a configuration file."""
+    if not file.filename.endswith(('.json', '.yaml', '.yml')):
+        raise HTTPException(status_code=400, detail="Only JSON and YAML files are supported")
+
     try:
-        masking_engine = MaskingEngine()
+        content = await file.read()
+        if file.filename.endswith('.json'):
+            config_data = json.loads(content.decode('utf-8'))
+        else:
+            import yaml
+            config_data = yaml.safe_load(content.decode('utf-8'))
 
-        rule = MaskingRule(
-            field_name=masking_rule.field_name,
-            sensitivity_level=SensitivityLevel(masking_rule.sensitivity_level),
-            strategy=MaskingStrategy(masking_rule.strategy),
-            strategy_params=masking_rule.strategy_params,
-            deterministic=masking_rule.deterministic
-        )
-
-        masking_engine.add_masking_rule(rule)
-        masked_value = masking_engine.mask_value(field_name, value)
+        # Validate configuration
+        config_manager.validate_config(config_data)
 
         return {
-            "original_value": value,
-            "masked_value": masked_value,
-            "rule": masking_rule.dict()
+            "message": "Configuration uploaded and validated successfully",
+            "config": config_data
         }
 
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON format: {str(e)}")
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid YAML format: {str(e)}")
+    except ConfigurationError as e:
+        raise HTTPException(status_code=400, detail=f"Configuration validation failed: {str(e)}")
     except Exception as e:
-        logger.error(f"Error testing masking rule: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error testing masking rule: {str(e)}"
-        )
+        logger.error(f"Error uploading config: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/stats")
-async def get_platform_stats(user: dict = Depends(get_current_user)):
-    """Get platform usage statistics"""
+# Schema Management Endpoints
+@app.get("/schemas", tags=["Schema"])
+async def list_schemas():
+    """List available schema templates."""
     try:
-        stats = await job_manager.get_stats()
-        return {
-            "total_jobs": stats.get("total_jobs", 0),
-            "jobs_by_status": stats.get("jobs_by_status", {}),
-            "jobs_today": stats.get("jobs_today", 0),
-            "total_rows_generated": stats.get("total_rows_generated", 0),
-            "average_job_duration": stats.get("average_job_duration", 0),
-            "most_used_formats": stats.get("most_used_formats", {}),
-        }
-
+        schemas = config_manager.list_schema_templates()
+        return {"schemas": schemas}
     except Exception as e:
-        logger.error(f"Error retrieving stats: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve platform statistics"
-        )
+        logger.error(f"Error listing schemas: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# Background task functions
+@app.get("/schemas/{schema_name}", tags=["Schema"])
+async def get_schema(schema_name: str):
+    """Get a specific schema template."""
+    try:
+        schema = config_manager.get_schema_template(schema_name)
+        if not schema:
+            raise HTTPException(status_code=404, detail="Schema not found")
+        return {"schema": schema}
+    except Exception as e:
+        logger.error(f"Error getting schema {schema_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-async def _execute_generation_job(job_id: str, request: GenerationRequest):
-    """Execute data generation job in background"""
+
+# Background task for job execution
+async def execute_job(job_id: str):
+    """Execute a data generation job in the background."""
     try:
         # Update job status to running
-        await job_manager.update_job_status(job_id, JobStatus.RUNNING, "Starting data generation")
+        await job_manager.update_job_status(job_id, JobStatus.RUNNING)
 
-        # Initialize components
-        config_manager = ConfigManager()
-        data_generator = OptimizedDataGenerator()
-        masking_engine = MaskingEngine() if request.apply_masking else None
-        exporter = DataExporter()
+        # Get job details
+        job = await job_manager.get_job(job_id)
+        if not job:
+            logger.error(f"Job {job_id} not found")
+            return
 
-        # Set up masking rules if needed
-        if masking_engine and request.masking_rules:
-            masking_engine.add_masking_rules_from_config(request.masking_rules)
-
-        # Progress tracking
-        total_tables = len(request.tables)
-        completed_tables = 0
-
-        # Generate data for each table
-        all_generated_data = {}
-
-        for table_config in request.tables:
-            await job_manager.update_job_progress(
-                job_id,
-                (completed_tables / total_tables) * 0.8,  # 80% for generation
-                f"Generating data for table '{table_config.table_name}'"
-            )
-
-            # Convert table config to generator format
-            table_schema = {
-                "table_name": table_config.table_name,
-                "columns": [col.dict() for col in table_config.columns],
-                "foreign_keys": [fk.dict() for fk in table_config.foreign_keys] if table_config.foreign_keys else []
-            }
-
-            # Generate data
-            rows_to_generate = table_config.rows or request.rows
-            generated_data = await _generate_table_data(
-                data_generator,
-                table_schema,
-                rows_to_generate,
-                request.locale
-            )
-
-            # Apply masking if enabled
-            if masking_engine:
-                generated_data = masking_engine.mask_dataset(generated_data)
-
-            all_generated_data[table_config.table_name] = generated_data
-            completed_tables += 1
-
-        # Export data
-        await job_manager.update_job_progress(
-            job_id,
-            0.9,
-            "Exporting generated data"
+        # Initialize data generator
+        generator = OptimizedDataGenerator(
+            config=job.config,
+            audit_logger=audit_logger
         )
 
-        output_file = await _export_generated_data(
-            exporter,
-            all_generated_data,
-            request.export_format,
-            request.export_destination,
-            job_id
+        # Progress callback
+        async def progress_callback(progress: float, message: str = None):
+            await job_manager.update_job_progress(job_id, progress, message)
+
+        # Execute generation
+        result = await generator.generate_async(
+            progress_callback=progress_callback
         )
 
-        # Complete job
-        result = {
-            "output_file": output_file,
-            "format": request.export_format,
-            "total_rows": sum(len(data) for data in all_generated_data.values()),
-            "tables_generated": list(all_generated_data.keys()),
-            "masking_applied": request.apply_masking
-        }
+        # Update job with results
+        await job_manager.complete_job(job_id, result)
 
-        await job_manager.complete_job(
-            job_id,
-            "Data generation completed successfully",
-            result
+        # Log completion
+        await audit_logger.log_job_event(
+            job_id=job_id,
+            event_type="JOB_COMPLETED",
+            metadata={"rows_generated": result.get("total_rows", 0)}
         )
 
     except Exception as e:
-        logger.error(f"Error in generation job {job_id}: {str(e)}")
+        logger.error(f"Error executing job {job_id}: {str(e)}")
         await job_manager.fail_job(job_id, str(e))
 
-
-async def _generate_table_data(generator, table_schema, rows, locale):
-    """Generate data for a single table"""
-    # This would integrate with your existing OptimizedDataGenerator
-    # For now, simplified implementation
-    return await asyncio.get_event_loop().run_in_executor(
-        None,
-        generator.generate_table_data,
-        table_schema,
-        rows,
-        locale
-    )
+        # Log failure
+        await audit_logger.log_job_event(
+            job_id=job_id,
+            event_type="JOB_FAILED",
+            metadata={"error": str(e)}
+        )
 
 
-async def _export_generated_data(exporter, data, format_type, destination, job_id):
-    """Export generated data to specified format and destination"""
-    output_filename = f"synthetic_data_{job_id}.{format_type}"
+# WebSocket endpoint for real-time job updates
+@app.websocket("/ws/jobs/{job_id}")
+async def websocket_job_updates(websocket, job_id: str):
+    """WebSocket endpoint for real-time job status updates."""
+    await websocket.accept()
 
-    return await asyncio.get_event_loop().run_in_executor(
-        None,
-        exporter.export_data,
-        data,
-        format_type,
-        destination or f"./output/{output_filename}"
-    )
+    try:
+        while True:
+            # Get current job status
+            job = await job_manager.get_job(job_id)
+            if job:
+                await websocket.send_json({
+                    "job_id": job_id,
+                    "status": job.status.value,
+                    "progress": job.progress,
+                    "message": job.message,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+
+            # Wait before next update
+            await asyncio.sleep(2)
+
+            # Break if job is completed or failed
+            if job and job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+                break
+
+    except Exception as e:
+        logger.error(f"WebSocket error for job {job_id}: {str(e)}")
+    finally:
+        await websocket.close()
+
+
+# Batch operations
+@app.post("/jobs/batch", tags=["Jobs"])
+async def create_batch_jobs(
+    job_requests: List[JobRequest],
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create multiple jobs in batch."""
+    if len(job_requests) > 10:  # Limit batch size
+        raise HTTPException(status_code=400, detail="Batch size cannot exceed 10 jobs")
+
+    created_jobs = []
+
+    for job_request in job_requests:
+        try:
+            # Validate configuration
+            config_manager.validate_config(job_request.config.dict())
+
+            # Create job
+            job_id = str(uuid.uuid4())
+            job = await job_manager.create_job(
+                job_id=job_id,
+                job_type=job_request.job_type,
+                config=job_request.config.dict(),
+                priority=job_request.priority,
+                scheduled_time=job_request.scheduled_time,
+                tags=job_request.tags,
+                metadata=job_request.metadata,
+                user_id=current_user.get("user_id") if current_user else None
+            )
+
+            created_jobs.append(JobResponse(**job.dict()))
+
+            # Schedule job execution
+            background_tasks.add_task(execute_job, job_id)
+
+        except Exception as e:
+            logger.error(f"Error creating batch job: {str(e)}")
+            # Continue with other jobs instead of failing the entire batch
+
+    return {"created_jobs": created_jobs, "total_created": len(created_jobs)}
+
+
+# Metrics and monitoring
+@app.get("/metrics", tags=["Monitoring"])
+async def get_metrics():
+    """Get system metrics for monitoring."""
+    try:
+        metrics = await job_manager.get_metrics()
+        return metrics
+    except Exception as e:
+        logger.error(f"Error getting metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # Error handlers
-@app.exception_handler(ValidationError)
-async def validation_exception_handler(request, exc):
+@app.exception_handler(ConfigurationError)
+async def configuration_error_handler(request, exc):
     return JSONResponse(
-        status_code=422,
-        content={"detail": str(exc), "type": "validation_error"}
+        status_code=400,
+        content={"error": "Configuration Error", "detail": str(exc)}
     )
 
 
 @app.exception_handler(GenerationError)
-async def generation_exception_handler(request, exc):
+async def generation_error_handler(request, exc):
     return JSONResponse(
         status_code=500,
-        content={"detail": str(exc), "type": "generation_error"}
+        content={"error": "Generation Error", "detail": str(exc)}
     )
 
 
-# Main application runner
-def create_app(config: Dict[str, Any] = None) -> FastAPI:
-    """Factory function to create configured FastAPI app"""
-    if config:
-        # Apply configuration to app
-        pass
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application on startup."""
+    logger.info("Starting Synthetic Data Generation Platform API")
+    await job_manager.initialize()
+    await audit_logger.initialize()
 
-    return app
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on application shutdown."""
+    logger.info("Shutting down Synthetic Data Generation Platform API")
+    await job_manager.cleanup()
+    await audit_logger.cleanup()
 
 
-def run_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
-    """Run the FastAPI server"""
+# Main function for running the server
+def main():
+    """Main function to run the FastAPI server."""
     uvicorn.run(
-        "synthetic_data_platform.api.rest_api:app",
-        host=host,
-        port=port,
-        reload=reload,
+        "rest_api:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
         log_level="info"
     )
 
 
 if __name__ == "__main__":
-    run_server()
+    main()
