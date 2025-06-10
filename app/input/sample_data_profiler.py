@@ -1063,23 +1063,23 @@ if __name__ == "__main__":
     profiler = SampleDataProfiler()
     
     # Load and profile sample data
-    # df = profiler.load_data("your_data.csv")
-    # profile = profiler.profile_dataset(df, "sample_table")
+    df = profiler.load_data("sample_data_profiler.csv")
+    profile = profiler.profile_dataset(df, "customer")
     # 
     # # Generate configuration for test data
-    # config = profiler.generate_test_data_config()
+    config = profiler.generate_test_data_config()
     # 
     # # Save reports
-    # profiler.save_profile_report("profile_report.json")
-    # profiler.export_generation_rules("generation_rules.json")
+    profiler.save_profile_report("profile_report.json")
+    profiler.export_generation_rules("generation_rules.json")
     # 
     # # Get improvement suggestions
-    # suggestions = profiler.suggest_data_improvements()
-    # print("Data Quality Suggestions:")
-    # for table, suggestions_list in suggestions.items():
-    #     print(f"\n{table}:")
-    #     for suggestion in suggestions_list:
-    #         print(f"  - {suggestion}")
+    suggestions = profiler.suggest_data_improvements()
+    print("Data Quality Suggestions:")
+    for table, suggestions_list in suggestions.items():
+        print(f"\n{table}:")
+        for suggestion in suggestions_list:
+            print(f"  - {suggestion}")
     
     print("SampleDataProfiler initialized and ready for use!")
     print("Example usage:")

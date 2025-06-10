@@ -1,0 +1,835 @@
+{
+  "customer": {
+    "table_name": "customer",
+    "row_count": 19,
+    "column_count": 9,
+    "profiling_timestamp": "2025-06-10T09:52:44.881569",
+    "columns": {
+      "Column Name": {
+        "name": "Column Name",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "0",
+        "null_percentage": 0.0,
+        "unique_count": 19,
+        "uniqueness_percentage": 100.0,
+        "constraints": [
+          "unique",
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "text",
+          "min_length": 9,
+          "max_length": 19,
+          "avg_length": 13.368421052631579
+        },
+        "top_values": {
+          "Data Type": 1,
+          "Size/Format": 1,
+          "Constraints / Rules": 1,
+          "Sample Data 1": 1,
+          "Sample Data 2": 1,
+          "Sample Data 3": 1,
+          "Sample Data 4": 1,
+          "Sample Data 5": 1,
+          "Sample Data 6": 1,
+          "Sample Data 7": 1
+        },
+        "value_distribution": {
+          "Data Type": 1,
+          "Size/Format": 1,
+          "Constraints / Rules": 1,
+          "Sample Data 1": 1,
+          "Sample Data 2": 1,
+          "Sample Data 3": 1,
+          "Sample Data 4": 1,
+          "Sample Data 5": 1,
+          "Sample Data 6": 1,
+          "Sample Data 7": 1,
+          "Sample Data 8": 1,
+          "Sample Data 9": 1,
+          "Sample Data 10": 1,
+          "Sample Data 11": 1,
+          "Sample Data 12": 1,
+          "Sample Data 13": 1,
+          "Sample Data 14": 1,
+          "Sample Data 15": 1,
+          "Sample Data 16": 1
+        },
+        "most_common": "Data Type",
+        "avg_length": 13.368421052631579,
+        "min_length": 9,
+        "max_length": 19,
+        "patterns": {
+          "email": 0.0,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 0.0,
+          "alphanumeric": 0.0,
+          "alpha_only": 0.0,
+          "mixed_case": 100.0,
+          "uppercase": 0.0,
+          "lowercase": 0.0
+        },
+        "is_categorical": false
+      },
+      "customer_id": {
+        "name": "customer_id",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "1",
+        "null_percentage": 5.263157894736842,
+        "unique_count": 18,
+        "uniqueness_percentage": 94.73684210526315,
+        "constraints": [
+          "unique",
+          "primary_key",
+          "foreign_key",
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "text",
+          "min_length": 2,
+          "max_length": 3,
+          "avg_length": 2.9444444444444446,
+          "null_probability": 0.05263157894736842
+        },
+        "top_values": {
+          "int": 1,
+          "PK": 1,
+          "101": 1,
+          "102": 1,
+          "107": 1,
+          "108": 1,
+          "109": 1,
+          "110": 1,
+          "111": 1,
+          "112": 1
+        },
+        "value_distribution": {
+          "int": 1,
+          "PK": 1,
+          "101": 1,
+          "102": 1,
+          "107": 1,
+          "108": 1,
+          "109": 1,
+          "110": 1,
+          "111": 1,
+          "112": 1,
+          "113": 1,
+          "114": 1,
+          "115": 1,
+          "116": 1,
+          "117": 1,
+          "118": 1,
+          "119": 1,
+          "120": 1
+        },
+        "most_common": "int",
+        "avg_length": 2.9444444444444446,
+        "min_length": 2,
+        "max_length": 3,
+        "patterns": {
+          "email": 0.0,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 88.88888888888889,
+          "alphanumeric": 11.11111111111111,
+          "alpha_only": 0.0,
+          "mixed_case": 0.0,
+          "uppercase": 5.555555555555555,
+          "lowercase": 5.555555555555555
+        },
+        "is_categorical": false
+      },
+      "first_name": {
+        "name": "first_name",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "0",
+        "null_percentage": 0.0,
+        "unique_count": 19,
+        "uniqueness_percentage": 100.0,
+        "constraints": [
+          "unique",
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "text",
+          "min_length": 2,
+          "max_length": 9,
+          "avg_length": 5.7368421052631575
+        },
+        "top_values": {
+          "varchar": 1,
+          "50": 1,
+          "NOT NULL": 1,
+          "Alice": 1,
+          "Bob": 1,
+          "Joseph": 1,
+          "Gary": 1,
+          "Ricardo": 1,
+          "Steven": 1,
+          "Cassandra": 1
+        },
+        "value_distribution": {
+          "varchar": 1,
+          "50": 1,
+          "NOT NULL": 1,
+          "Alice": 1,
+          "Bob": 1,
+          "Joseph": 1,
+          "Gary": 1,
+          "Ricardo": 1,
+          "Steven": 1,
+          "Cassandra": 1,
+          "Susan": 1,
+          "Ethan": 1,
+          "Denise": 1,
+          "Mary": 1,
+          "Timothy": 1,
+          "Sally": 1,
+          "Jennifer": 1,
+          "Cole": 1,
+          "Meredith": 1
+        },
+        "most_common": "varchar",
+        "avg_length": 5.7368421052631575,
+        "min_length": 2,
+        "max_length": 9,
+        "patterns": {
+          "email": 0.0,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 5.263157894736842,
+          "alphanumeric": 89.47368421052632,
+          "alpha_only": 0.0,
+          "mixed_case": 84.21052631578947,
+          "uppercase": 5.263157894736842,
+          "lowercase": 5.263157894736842
+        },
+        "is_categorical": false
+      },
+      "last_name": {
+        "name": "last_name",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "0",
+        "null_percentage": 0.0,
+        "unique_count": 17,
+        "uniqueness_percentage": 89.47368421052632,
+        "constraints": [
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "text",
+          "min_length": 2,
+          "max_length": 8,
+          "avg_length": 5.7368421052631575
+        },
+        "top_values": {
+          "Johnson": 2,
+          "Brown": 2,
+          "varchar": 1,
+          "NOT NULL": 1,
+          "50": 1,
+          "Smith": 1,
+          "Holt": 1,
+          "Strong": 1,
+          "Ortiz": 1,
+          "Jones": 1
+        },
+        "value_distribution": {
+          "Johnson": 2,
+          "Brown": 2,
+          "varchar": 1,
+          "NOT NULL": 1,
+          "50": 1,
+          "Smith": 1,
+          "Holt": 1,
+          "Strong": 1,
+          "Ortiz": 1,
+          "Jones": 1,
+          "Gordon": 1,
+          "Foster": 1,
+          "Bird": 1,
+          "Jacobson": 1,
+          "Anderson": 1,
+          "Quinn": 1,
+          "Norris": 1
+        },
+        "most_common": "Johnson",
+        "avg_length": 5.7368421052631575,
+        "min_length": 2,
+        "max_length": 8,
+        "patterns": {
+          "email": 0.0,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 5.263157894736842,
+          "alphanumeric": 89.47368421052632,
+          "alpha_only": 0.0,
+          "mixed_case": 84.21052631578947,
+          "uppercase": 5.263157894736842,
+          "lowercase": 5.263157894736842
+        },
+        "is_categorical": false
+      },
+      "email": {
+        "name": "email",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "1",
+        "null_percentage": 5.263157894736842,
+        "unique_count": 18,
+        "uniqueness_percentage": 94.73684210526315,
+        "constraints": [
+          "unique",
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "email",
+          "null_probability": 0.05263157894736842
+        },
+        "top_values": {
+          "email": 1,
+          "MASK": 1,
+          "alice@example.com": 1,
+          "bob@example.com": 1,
+          "alexanderjennifer@dickerson-reynolds.com": 1,
+          "pmiller@herrera.com": 1,
+          "mhudson@yahoo.com": 1,
+          "ariana34@duran.org": 1,
+          "weberjeffrey@yahoo.com": 1,
+          "michele91@tucker.com": 1
+        },
+        "value_distribution": {
+          "email": 1,
+          "MASK": 1,
+          "alice@example.com": 1,
+          "bob@example.com": 1,
+          "alexanderjennifer@dickerson-reynolds.com": 1,
+          "pmiller@herrera.com": 1,
+          "mhudson@yahoo.com": 1,
+          "ariana34@duran.org": 1,
+          "weberjeffrey@yahoo.com": 1,
+          "michele91@tucker.com": 1,
+          "melissabarrett@flores-beard.com": 1,
+          "kshaw@yahoo.com": 1,
+          "scotthunt@rodriguez.net": 1,
+          "morganrivera@west-kelly.info": 1,
+          "vcline@stout.net": 1,
+          "dpeterson@martinez-armstrong.net": 1,
+          "kirk28@gmail.com": 1,
+          "johnsmith@peterson-ware.com": 1
+        },
+        "most_common": "email",
+        "avg_length": 20.27777777777778,
+        "min_length": 4,
+        "max_length": 40,
+        "patterns": {
+          "email": 88.88888888888889,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 0.0,
+          "alphanumeric": 11.11111111111111,
+          "alpha_only": 0.0,
+          "mixed_case": 0.0,
+          "uppercase": 5.555555555555555,
+          "lowercase": 94.44444444444444
+        },
+        "is_categorical": false
+      },
+      "dob": {
+        "name": "dob",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "1",
+        "null_percentage": 5.263157894736842,
+        "unique_count": 18,
+        "uniqueness_percentage": 94.73684210526315,
+        "constraints": [
+          "unique",
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "text",
+          "min_length": 4,
+          "max_length": 10,
+          "avg_length": 8.722222222222221,
+          "null_probability": 0.05263157894736842
+        },
+        "top_values": {
+          "date": 1,
+          "MM/DD/YYYY": 1,
+          "7/12/1985": 1,
+          "2/25/1990": 1,
+          "3/8/1963": 1,
+          "7/27/1991": 1,
+          "6/20/2001": 1,
+          "11/14/1977": 1,
+          "7/23/1963": 1,
+          "1/4/1956": 1
+        },
+        "value_distribution": {
+          "date": 1,
+          "MM/DD/YYYY": 1,
+          "7/12/1985": 1,
+          "2/25/1990": 1,
+          "3/8/1963": 1,
+          "7/27/1991": 1,
+          "6/20/2001": 1,
+          "11/14/1977": 1,
+          "7/23/1963": 1,
+          "1/4/1956": 1,
+          "4/2/2007": 1,
+          "1/29/1960": 1,
+          "2/12/1977": 1,
+          "12/21/2002": 1,
+          "11/8/1971": 1,
+          "11/8/1990": 1,
+          "5/28/1996": 1,
+          "9/29/1977": 1
+        },
+        "most_common": "date",
+        "avg_length": 8.722222222222221,
+        "min_length": 4,
+        "max_length": 10,
+        "patterns": {
+          "email": 0.0,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 0.0,
+          "alphanumeric": 5.555555555555555,
+          "alpha_only": 0.0,
+          "mixed_case": 0.0,
+          "uppercase": 5.555555555555555,
+          "lowercase": 5.555555555555555
+        },
+        "is_categorical": false
+      },
+      "account_type": {
+        "name": "account_type",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "1",
+        "null_percentage": 5.263157894736842,
+        "unique_count": 4,
+        "uniqueness_percentage": 21.052631578947366,
+        "constraints": [
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "text",
+          "min_length": 4,
+          "max_length": 22,
+          "avg_length": 7.666666666666667,
+          "null_probability": 0.05263157894736842
+        },
+        "top_values": {
+          "current": 8,
+          "savings": 8,
+          "values:savings,current": 1,
+          "enum": 1
+        },
+        "value_distribution": {
+          "current": 8,
+          "savings": 8,
+          "values:savings,current": 1,
+          "enum": 1
+        },
+        "most_common": "current",
+        "avg_length": 7.666666666666667,
+        "min_length": 4,
+        "max_length": 22,
+        "patterns": {
+          "email": 0.0,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 0.0,
+          "alphanumeric": 94.44444444444444,
+          "alpha_only": 0.0,
+          "mixed_case": 0.0,
+          "uppercase": 0.0,
+          "lowercase": 100.0
+        },
+        "is_categorical": false
+      },
+      "balance": {
+        "name": "balance",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "0",
+        "null_percentage": 0.0,
+        "unique_count": 19,
+        "uniqueness_percentage": 100.0,
+        "constraints": [
+          "unique",
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "text",
+          "min_length": 4,
+          "max_length": 8,
+          "avg_length": 7.2631578947368425
+        },
+        "top_values": {
+          "decimal": 1,
+          "(18,2)": 1,
+          ">= 0": 1,
+          "4500.75": 1,
+          "12000.5": 1,
+          "6125.07": 1,
+          "1340.36": 1,
+          "16056.51": 1,
+          "13349.43": 1,
+          "16292.87": 1
+        },
+        "value_distribution": {
+          "decimal": 1,
+          "(18,2)": 1,
+          ">= 0": 1,
+          "4500.75": 1,
+          "12000.5": 1,
+          "6125.07": 1,
+          "1340.36": 1,
+          "16056.51": 1,
+          "13349.43": 1,
+          "16292.87": 1,
+          "9427.45": 1,
+          "12099.93": 1,
+          "17709.11": 1,
+          "1238.39": 1,
+          "9859.58": 1,
+          "13498.78": 1,
+          "24700.47": 1,
+          "21491.36": 1,
+          "13198.65": 1
+        },
+        "most_common": "decimal",
+        "avg_length": 7.2631578947368425,
+        "min_length": 4,
+        "max_length": 8,
+        "patterns": {
+          "email": 0.0,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 0.0,
+          "alphanumeric": 5.263157894736842,
+          "alpha_only": 0.0,
+          "mixed_case": 0.0,
+          "uppercase": 0.0,
+          "lowercase": 5.263157894736842
+        },
+        "is_categorical": false
+      },
+      "customer_type": {
+        "name": "customer_type",
+        "dtype": "object",
+        "inferred_type": "str",
+        "null_count": "2",
+        "null_percentage": 10.526315789473683,
+        "unique_count": 4,
+        "uniqueness_percentage": 21.052631578947366,
+        "constraints": [
+          "not_null"
+        ],
+        "generation_hints": {
+          "type": "text",
+          "min_length": 3,
+          "max_length": 8,
+          "avg_length": 6.882352941176471,
+          "null_probability": 0.10526315789473684
+        },
+        "top_values": {
+          "standard": 9,
+          "premium": 4,
+          "vip": 3,
+          " varchar": 1
+        },
+        "value_distribution": {
+          "standard": 9,
+          "premium": 4,
+          "vip": 3,
+          " varchar": 1
+        },
+        "most_common": "standard",
+        "avg_length": 6.882352941176471,
+        "min_length": 3,
+        "max_length": 8,
+        "patterns": {
+          "email": 0.0,
+          "phone": 0.0,
+          "uuid": 0.0,
+          "url": 0.0,
+          "numeric": 0.0,
+          "alphanumeric": 94.11764705882352,
+          "alpha_only": 0.0,
+          "mixed_case": 0.0,
+          "uppercase": 0.0,
+          "lowercase": 100.0
+        },
+        "is_categorical": false
+      }
+    },
+    "relationships": {
+      "correlations": {},
+      "dependencies": [
+        {
+          "dependent_column": "account_type",
+          "independent_column": "customer_type",
+          "chi2_statistic": 18.53472222222222,
+          "p_value": 0.005026019605806624,
+          "strength": "moderate"
+        },
+        {
+          "dependent_column": "customer_type",
+          "independent_column": "account_type",
+          "chi2_statistic": 18.534722222222225,
+          "p_value": 0.005026019605806613,
+          "strength": "moderate"
+        }
+      ],
+      "potential_foreign_keys": [
+        {
+          "column": "customer_id",
+          "unique_values": 18,
+          "null_count": 1,
+          "sample_values": [
+            "int",
+            "PK",
+            "101",
+            "102",
+            "107"
+          ]
+        }
+      ]
+    },
+    "data_quality": {
+      "total_rows": 19,
+      "total_columns": 9,
+      "missing_data_percentage": 3.508771929824561,
+      "duplicate_rows": 0,
+      "duplicate_percentage": 0.0,
+      "columns_with_nulls": [
+        "customer_id",
+        "email",
+        "dob",
+        "account_type",
+        "customer_type"
+      ],
+      "completely_null_columns": [],
+      "constant_columns": []
+    },
+    "patterns": {
+      "time_series_candidates": [],
+      "hierarchical_relationships": [
+        {
+          "child_column": "customer_id",
+          "potential_parent": "customer"
+        }
+      ],
+      "enumeration_patterns": [
+        {
+          "column": "Column Name",
+          "unique_values": 19,
+          "values": {
+            "Data Type": 1,
+            "Size/Format": 1,
+            "Constraints / Rules": 1,
+            "Sample Data 1": 1,
+            "Sample Data 2": 1,
+            "Sample Data 3": 1,
+            "Sample Data 4": 1,
+            "Sample Data 5": 1,
+            "Sample Data 6": 1,
+            "Sample Data 7": 1,
+            "Sample Data 8": 1,
+            "Sample Data 9": 1,
+            "Sample Data 10": 1,
+            "Sample Data 11": 1,
+            "Sample Data 12": 1,
+            "Sample Data 13": 1,
+            "Sample Data 14": 1,
+            "Sample Data 15": 1,
+            "Sample Data 16": 1
+          }
+        },
+        {
+          "column": "customer_id",
+          "unique_values": 18,
+          "values": {
+            "int": 1,
+            "PK": 1,
+            "101": 1,
+            "102": 1,
+            "107": 1,
+            "108": 1,
+            "109": 1,
+            "110": 1,
+            "111": 1,
+            "112": 1,
+            "113": 1,
+            "114": 1,
+            "115": 1,
+            "116": 1,
+            "117": 1,
+            "118": 1,
+            "119": 1,
+            "120": 1
+          }
+        },
+        {
+          "column": "first_name",
+          "unique_values": 19,
+          "values": {
+            "varchar": 1,
+            "50": 1,
+            "NOT NULL": 1,
+            "Alice": 1,
+            "Bob": 1,
+            "Joseph": 1,
+            "Gary": 1,
+            "Ricardo": 1,
+            "Steven": 1,
+            "Cassandra": 1,
+            "Susan": 1,
+            "Ethan": 1,
+            "Denise": 1,
+            "Mary": 1,
+            "Timothy": 1,
+            "Sally": 1,
+            "Jennifer": 1,
+            "Cole": 1,
+            "Meredith": 1
+          }
+        },
+        {
+          "column": "last_name",
+          "unique_values": 17,
+          "values": {
+            "Johnson": 2,
+            "Brown": 2,
+            "varchar": 1,
+            "NOT NULL": 1,
+            "50": 1,
+            "Smith": 1,
+            "Holt": 1,
+            "Strong": 1,
+            "Ortiz": 1,
+            "Jones": 1,
+            "Gordon": 1,
+            "Foster": 1,
+            "Bird": 1,
+            "Jacobson": 1,
+            "Anderson": 1,
+            "Quinn": 1,
+            "Norris": 1
+          }
+        },
+        {
+          "column": "email",
+          "unique_values": 18,
+          "values": {
+            "email": 1,
+            "MASK": 1,
+            "alice@example.com": 1,
+            "bob@example.com": 1,
+            "alexanderjennifer@dickerson-reynolds.com": 1,
+            "pmiller@herrera.com": 1,
+            "mhudson@yahoo.com": 1,
+            "ariana34@duran.org": 1,
+            "weberjeffrey@yahoo.com": 1,
+            "michele91@tucker.com": 1,
+            "melissabarrett@flores-beard.com": 1,
+            "kshaw@yahoo.com": 1,
+            "scotthunt@rodriguez.net": 1,
+            "morganrivera@west-kelly.info": 1,
+            "vcline@stout.net": 1,
+            "dpeterson@martinez-armstrong.net": 1,
+            "kirk28@gmail.com": 1,
+            "johnsmith@peterson-ware.com": 1
+          }
+        },
+        {
+          "column": "dob",
+          "unique_values": 18,
+          "values": {
+            "date": 1,
+            "MM/DD/YYYY": 1,
+            "7/12/1985": 1,
+            "2/25/1990": 1,
+            "3/8/1963": 1,
+            "7/27/1991": 1,
+            "6/20/2001": 1,
+            "11/14/1977": 1,
+            "7/23/1963": 1,
+            "1/4/1956": 1,
+            "4/2/2007": 1,
+            "1/29/1960": 1,
+            "2/12/1977": 1,
+            "12/21/2002": 1,
+            "11/8/1971": 1,
+            "11/8/1990": 1,
+            "5/28/1996": 1,
+            "9/29/1977": 1
+          }
+        },
+        {
+          "column": "account_type",
+          "unique_values": 4,
+          "values": {
+            "current": 8,
+            "savings": 8,
+            "values:savings,current": 1,
+            "enum": 1
+          }
+        },
+        {
+          "column": "balance",
+          "unique_values": 19,
+          "values": {
+            "decimal": 1,
+            "(18,2)": 1,
+            ">= 0": 1,
+            "4500.75": 1,
+            "12000.5": 1,
+            "6125.07": 1,
+            "1340.36": 1,
+            "16056.51": 1,
+            "13349.43": 1,
+            "16292.87": 1,
+            "9427.45": 1,
+            "12099.93": 1,
+            "17709.11": 1,
+            "1238.39": 1,
+            "9859.58": 1,
+            "13498.78": 1,
+            "24700.47": 1,
+            "21491.36": 1,
+            "13198.65": 1
+          }
+        },
+        {
+          "column": "customer_type",
+          "unique_values": 4,
+          "values": {
+            "standard": 9,
+            "premium": 4,
+            "vip": 3,
+            " varchar": 1
+          }
+        }
+      ]
+    }
+  }
+}

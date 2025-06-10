@@ -1,0 +1,20 @@
+Column Name,customer_id,first_name,last_name,email,dob,account_type,balance,customer_type
+Data Type,int,varchar,varchar,email,date,enum,decimal, varchar
+Size/Format,,50,50,,MM/DD/YYYY,,"(18,2)",
+Constraints / Rules,PK,NOT NULL,NOT NULL,MASK,,"values:savings,current",>= 0,
+Sample Data 1,101,Alice,Smith,alice@example.com,7/12/1985,savings,4500.75,premium
+Sample Data 2,102,Bob,Johnson,bob@example.com,2/25/1990,current,12000.5,standard
+Sample Data 3,107,Joseph,Brown,alexanderjennifer@dickerson-reynolds.com,3/8/1963,savings,6125.07,vip
+Sample Data 4,108,Gary,Holt,pmiller@herrera.com,7/27/1991,savings,1340.36,premium
+Sample Data 5,109,Ricardo,Strong,mhudson@yahoo.com,6/20/2001,savings,16056.51,premium
+Sample Data 6,110,Steven,Ortiz,ariana34@duran.org,11/14/1977,current,13349.43,premium
+Sample Data 7,111,Cassandra,Jones,weberjeffrey@yahoo.com,7/23/1963,current,16292.87,vip
+Sample Data 8,112,Susan,Johnson,michele91@tucker.com,1/4/1956,current,9427.45,vip
+Sample Data 9,113,Ethan,Gordon,melissabarrett@flores-beard.com,4/2/2007,current,12099.93,standard
+Sample Data 10,114,Denise,Foster,kshaw@yahoo.com,1/29/1960,savings,17709.11,standard
+Sample Data 11,115,Mary,Bird,scotthunt@rodriguez.net,2/12/1977,savings,1238.39,standard
+Sample Data 12,116,Timothy,Brown,morganrivera@west-kelly.info,12/21/2002,savings,9859.58,standard
+Sample Data 13,117,Sally,Jacobson,vcline@stout.net,11/8/1971,savings,13498.78,standard
+Sample Data 14,118,Jennifer,Anderson,dpeterson@martinez-armstrong.net,11/8/1990,current,24700.47,standard
+Sample Data 15,119,Cole,Quinn,kirk28@gmail.com,5/28/1996,current,21491.36,standard
+Sample Data 16,120,Meredith,Norris,johnsmith@peterson-ware.com,9/29/1977,current,13198.65,standard

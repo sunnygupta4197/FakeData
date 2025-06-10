@@ -9,7 +9,7 @@ from traceback import print_exc
 
 from json_reader import JSONConfigReader
 from app.core import EnhancedDataGenerator, ProfilerIntegratedGenerator
-from validator import DataValidator
+from app.core.validator import DataValidator
 from app.core import RelationshipPreserver
 from app.core import RuleEngine
 from app.input import SampleDataProfiler

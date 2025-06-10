@@ -1,0 +1,144 @@
+{
+  "customer": {
+    "table_name": "customer",
+    "estimated_rows": 19,
+    "columns": {
+      "Column Name": {
+        "type": "str",
+        "nullable": "False",
+        "null_probability": 0.0,
+        "generation_rule": {
+          "type": "text",
+          "min_length": 9,
+          "max_length": 19,
+          "avg_length": 13.368421052631579
+        },
+        "constraints": [
+          "unique",
+          "not_null"
+        ]
+      },
+      "customer_id": {
+        "type": "str",
+        "nullable": "True",
+        "null_probability": 0.05263157894736842,
+        "generation_rule": {
+          "type": "text",
+          "min_length": 2,
+          "max_length": 3,
+          "avg_length": 2.9444444444444446,
+          "null_probability": 0.05263157894736842
+        },
+        "constraints": [
+          "unique",
+          "primary_key",
+          "foreign_key",
+          "not_null"
+        ]
+      },
+      "first_name": {
+        "type": "str",
+        "nullable": "False",
+        "null_probability": 0.0,
+        "generation_rule": {
+          "type": "text",
+          "min_length": 2,
+          "max_length": 9,
+          "avg_length": 5.7368421052631575
+        },
+        "constraints": [
+          "unique",
+          "not_null"
+        ]
+      },
+      "last_name": {
+        "type": "str",
+        "nullable": "False",
+        "null_probability": 0.0,
+        "generation_rule": {
+          "type": "text",
+          "min_length": 2,
+          "max_length": 8,
+          "avg_length": 5.7368421052631575
+        },
+        "constraints": [
+          "not_null"
+        ]
+      },
+      "email": {
+        "type": "str",
+        "nullable": "True",
+        "null_probability": 0.05263157894736842,
+        "generation_rule": {
+          "type": "email",
+          "null_probability": 0.05263157894736842
+        },
+        "constraints": [
+          "unique",
+          "not_null"
+        ]
+      },
+      "dob": {
+        "type": "str",
+        "nullable": "True",
+        "null_probability": 0.05263157894736842,
+        "generation_rule": {
+          "type": "text",
+          "min_length": 4,
+          "max_length": 10,
+          "avg_length": 8.722222222222221,
+          "null_probability": 0.05263157894736842
+        },
+        "constraints": [
+          "unique",
+          "not_null"
+        ]
+      },
+      "account_type": {
+        "type": "str",
+        "nullable": "True",
+        "null_probability": 0.05263157894736842,
+        "generation_rule": {
+          "type": "text",
+          "min_length": 4,
+          "max_length": 22,
+          "avg_length": 7.666666666666667,
+          "null_probability": 0.05263157894736842
+        },
+        "constraints": [
+          "not_null"
+        ]
+      },
+      "balance": {
+        "type": "str",
+        "nullable": "False",
+        "null_probability": 0.0,
+        "generation_rule": {
+          "type": "text",
+          "min_length": 4,
+          "max_length": 8,
+          "avg_length": 7.2631578947368425
+        },
+        "constraints": [
+          "unique",
+          "not_null"
+        ]
+      },
+      "customer_type": {
+        "type": "str",
+        "nullable": "True",
+        "null_probability": 0.10526315789473684,
+        "generation_rule": {
+          "type": "text",
+          "min_length": 3,
+          "max_length": 8,
+          "avg_length": 6.882352941176471,
+          "null_probability": 0.10526315789473684
+        },
+        "constraints": [
+          "not_null"
+        ]
+      }
+    }
+  }
+}

@@ -9,6 +9,7 @@ import json
 import pandas as pd
 import re
 import string
+from pathlib import Path
 
 # Additional libraries for enhanced data generation
 try:
@@ -35,9 +36,9 @@ except ImportError:
     SKLEARN_AVAILABLE = False
     print("Warning: scikit-learn not available. Install with: pip install scikit-learn")
 
-from validator import DataValidator
-from relationship_preserver import RelationshipPreserver
-from rule_engine import RuleEngine
+from app.core.validator import DataValidator
+from app.core.relationship_preserver import RelationshipPreserver
+from app.core.rule_engine import RuleEngine
 
 
 class EnhancedDataGenerator:
