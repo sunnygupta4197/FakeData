@@ -1,0 +1,29 @@
+test_data_generator/
+├── input/
+│   ├── __init__.py
+│   ├── schema_parser.py          # DDL/metadata parsing    -> done
+│   └── sample_data_profiler.py   # Data profiling & rule inference  -> done
+├── core/
+│   ├── __init__.py
+│   ├── rule_engine.py            # Rule management & templates    -> done
+│   ├── data_generator.py         # Your existing OptimizedDataGenerator
+│   ├── relationship_preserver.py # FK/PK relationship handling
+│   └── masking_engine.py         # Data anonymization/masking
+├── output/
+│   ├── __init__.py
+│   ├── exporter.py               # Multi-format export (CSV, JSON, Parquet, SQL)
+│   └── logger.py                 # Audit logging service
+├── api/
+│   ├── __init__.py
+│   ├── cli.py                    # Command-line interface
+│   └── rest_api.py               # REST API endpoints
+├── utils/
+│   ├── __init__.py
+│   └── config_loader.py          # Configuration management
+├── jobs/
+│   ├── __init__.py
+│   └── scheduler.py              # Job scheduling & management
+├── main.py                       # Your existing main.py (enhanced)
+├── config.yaml                   # Default configuration
+├── requirements.txt              # Dependencies
+└── README.md                     # Documentation

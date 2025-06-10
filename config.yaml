@@ -1,0 +1,46 @@
+generator:
+  locale: "en_GB"
+  chunk_size: 100000
+  cache_size_limit: 50000
+  default_rows: 1000
+  
+output:
+  format: "csv"  # csv, json, parquet, sql_query
+  directory: "./output"
+  batch_size: 10000
+  
+logging:
+  level: "INFO"
+  file: "generator.log"
+  audit_trail: true
+  
+masking:
+  enabled: false
+  default_strategy: "hash"  # hash, shuffle, null, fake
+  sensitive_patterns:
+    - "email"
+    - "phone"
+    - "ssn"
+    - "credit_card"
+    
+export:
+  destinations:
+    local:
+      enabled: true
+      path: "./output"
+    s3:
+      enabled: false
+      bucket: ""
+      prefix: "test-data/"
+    postgres:
+      enabled: false
+      connection_string: ""
+      
+api:
+  host: "localhost"
+  port: 8000
+  debug: false
+  
+scheduler:
+  enabled: false
+  timezone: "UTC"

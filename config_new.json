@@ -1,0 +1,100 @@
+{
+    "tables": [
+		{
+			"table_name": "address",
+            "columns": [
+                {
+                    "name": "address_id",
+                    "type": "int",
+					"constraint": ["PK"],
+                    "nullable": true
+                },
+                {
+                    "name": "address",
+                    "type": "str",
+                    "nullable": true
+                }
+			]
+		},
+        {
+            "table_name": "customer",
+            "columns": [
+                {
+                    "name": "customer_id",
+                    "type": "int",
+					"constraint": ["PK"],
+                    "nullable": true
+                },
+                {
+                    "name": "first_name",
+                    "type": "str",
+                    "nullable": true
+                },
+                {
+                    "name": "last_name",
+                    "type": "str",
+                    "nullable": true
+                },
+                {
+                    "name": "email",
+                    "type": "str",
+                    "nullable": true,
+                    "sensitivity": "PII"
+                },
+                {
+                    "name": "phone_number",
+                    "type": "str",
+                    "nullable": true,
+                    "sensitivity": "PII"
+                },
+                {
+                    "name": "date_of_birth",
+                    "type": "date",
+                    "nullable": true
+                },
+                {
+                    "name": "registration_date",
+                    "type": "date",
+                    "nullable": true,
+                    "default": "2020-01-01"
+                },
+                {
+                    "name": "address_id",
+                    "type": "int",
+                    "nullable": true
+                },
+                {
+                    "name": "age",
+                    "type": "int",
+                    "nullable": true
+                },
+                {
+                  "name": "customer_type",
+                  "type": "str"
+                },
+                {
+                    "name": "income",
+                    "type": "float",
+                    "nullable": true,
+                    "sensitivity": "FINANCIAL"
+                },
+                {
+                    "name": "gender",
+                    "type": "str",
+                    "nullable": true,
+                    "default": "Not Specified"
+                }
+            ],
+            "foreign_keys": [
+                {
+                    "parent_table": "address",
+                    "parent_column": "address_id",
+                    "child_column": "address_id"
+                }
+            ]
+        }
+    ],
+    "locale": "en_GB",
+    "rows": 20000
+}
+
