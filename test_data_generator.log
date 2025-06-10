@@ -29,3 +29,10 @@
 2025-06-10 08:19:58,664 - INFO - Exported music_recommendation to ./output\music_recommendation.csv
 2025-06-10 08:19:58,665 - INFO - Audit trail saved to ./output\audit_trail.json
 2025-06-10 08:19:58,665 - INFO - Test data generation completed successfully
+2025-06-10 09:12:40,015 - INFO - Starting test data generation
+2025-06-10 09:12:40,049 - INFO - Built dependency graph: {'music_recommendation': []}
+2025-06-10 09:12:40,049 - INFO - Table generation order: ['music_recommendation']
+2025-06-10 09:12:40,050 - INFO - Generating 100 rows for table music_recommendation
+2025-06-10 09:12:40,114 - INFO - Exported music_recommendation to ./output\music_recommendation.csv
+2025-06-10 09:12:40,115 - INFO - Audit trail saved to ./output\audit_trail.json
+2025-06-10 09:12:40,115 - INFO - Test data generation completed successfully

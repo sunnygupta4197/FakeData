@@ -19,11 +19,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 import uvicorn
 
-from .jobs.job_manager import JobManager, JobStatus
-from .utils.config_manager import ConfigManager
-from .utils.exceptions import ConfigurationError, GenerationError
-from .core.data_generator import OptimizedDataGenerator
-from .output.audit_logger import AuditLogger
+from app.jobs.job_manager import JobManager, JobStatus
+from app.utils.config_manager import ConfigManager
+from app.utils.exceptions import ConfigurationError, GenerationError
+from app.core.data_generator import OptimizedDataGenerator
+from app.output.audit_logger import AuditLogger
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

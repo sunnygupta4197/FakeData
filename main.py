@@ -8,12 +8,12 @@ import pandas as pd
 from traceback import print_exc
 
 from json_reader import JSONConfigReader
-from core.data_generator import EnhancedDataGenerator, ProfilerIntegratedGenerator
+from app.core import EnhancedDataGenerator, ProfilerIntegratedGenerator
 from validator import DataValidator
-from core.relationship_preserver import RelationshipPreserver
-from core.rule_engine import RuleEngine
-from input.sample_data_profiler import SampleDataProfiler
-from input.schema_parser import SchemaParser
+from app.core import RelationshipPreserver
+from app.core import RuleEngine
+from app.input import SampleDataProfiler
+from app.input import SchemaParser
 from writer import CSVWriter, JsonWriter, ParquetWriter, SQLQueryWriter
 
 # Configure logging

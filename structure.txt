@@ -1,29 +1,64 @@
-test_data_generator/
-├── input/
+"""
+Production-ready Synthetic Data Platform Structure
+
+synthetic_data_platform/
+├── src/
+│   └── synthetic_data_platform/
+│       ├── __init__.py
+│       ├── main.py                    # Enhanced main orchestrator
+│       ├── input/
+│       │   ├── __init__.py
+│       │   ├── schema_parser.py       # DDL/JSON schema parsing
+│       │   └── sample_data_profiler.py # Data profiling
+│       ├── core/
+│       │   ├── __init__.py
+│       │   ├── rule_engine.py         # Rule management
+│       │   ├── data_generator.py      # Enhanced generator
+│       │   ├── masking_engine.py      # PII masking
+│       │   └── orchestrator.py       # Core orchestration
+│       ├── output/
+│       │   ├── __init__.py
+│       │   ├── exporter.py           # Multi-format export
+│       │   └── audit_logger.py       # Audit trail
+│       ├── api/
+│       │   ├── __init__.py
+│       │   ├── cli.py                # Click-based CLI
+│       │   ├── rest_api.py           # FastAPI REST API
+│       │   └── models.py             # Pydantic models
+│       ├── jobs/
+│       │   ├── __init__.py
+│       │   ├── scheduler.py          # APScheduler integration
+│       │   └── job_manager.py        # Job management
+│       └── utils/
+│           ├── __init__.py
+│           ├── config_manager.py     # Configuration management
+│           ├── exceptions.py         # Custom exceptions
+│           └── validation.py         # Schema validation
+├── tests/
 │   ├── __init__.py
-│   ├── schema_parser.py          # DDL/metadata parsing    -> done
-│   └── sample_data_profiler.py   # Data profiling & rule inference  -> done
-├── core/
-│   ├── __init__.py
-│   ├── rule_engine.py            # Rule management & templates    -> done
-│   ├── data_generator.py         # Your existing OptimizedDataGenerator
-│   ├── relationship_preserver.py # FK/PK relationship handling
-│   └── masking_engine.py         # Data anonymization/masking
-├── output/
-│   ├── __init__.py
-│   ├── exporter.py               # Multi-format export (CSV, JSON, Parquet, SQL)
-│   └── logger.py                 # Audit logging service
-├── api/
-│   ├── __init__.py
-│   ├── cli.py                    # Command-line interface
-│   └── rest_api.py               # REST API endpoints
-├── utils/
-│   ├── __init__.py
-│   └── config_loader.py          # Configuration management
-├── jobs/
-│   ├── __init__.py
-│   └── scheduler.py              # Job scheduling & management
-├── main.py                       # Your existing main.py (enhanced)
-├── config.yaml                   # Default configuration
-├── requirements.txt              # Dependencies
-└── README.md                     # Documentation
+│   ├── test_data_generator.py
+│   ├── test_masking_engine.py
+│   ├── test_cli.py
+│   └── test_api.py
+├── configs/
+│   ├── sample_config.json
+│   └── rules/
+│       └── default_rules.yaml
+├── docker/
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── docs/
+│   ├── README.md
+│   ├── API.md
+│   └── examples/
+├── requirements/
+│   ├── base.txt
+│   ├── dev.txt
+│   └── prod.txt
+├── pyproject.toml
+├── setup.py
+├── Makefile
+└── .github/
+    └── workflows/
+        └── ci.yml
+"""
